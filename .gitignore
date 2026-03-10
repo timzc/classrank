@@ -1,0 +1,43 @@
+.env
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+db.sqlite3
+venv/
+ENV/
+.idea/
+.vscode/
+*.log
+.DS_Store
+
+# Django migrations (exclude all except __init__.py)
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# Static files collected
+staticfiles/
+.DS_Store
+
+# Django migrations (exclude all except __init__.py)
+*/migrations/*.py
+!*/migrations/__init__.py
+
+# Static files collected
+staticfiles/

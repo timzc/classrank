@@ -1,0 +1,1968 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生考评积分管理系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-light: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --accent: #f59e0b;
+            --success: #10b981;
+            --danger: #ef4444;
+            --bg-main: #f8fafc;
+            --bg-card: #ffffff;
+            --border: #e2e8f0;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+            --radius: 12px;
+            --radius-sm: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        .header {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: var(--primary);
+        }
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.1rem;
+        }
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-main);
+            padding: 4px;
+            border-radius: var(--radius-sm);
+        }
+        .nav-tab {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab.active {
+            background: var(--bg-card);
+            color: var(--primary);
+            box-shadow: var(--shadow-sm);
+        }
+        .main-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .page-view { display: none; }
+        .page-view.active { display: block; }
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .card-body { padding: 24px; }
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+        }
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-value.positive { color: var(--success); }
+        .stat-value.negative { color: var(--danger); }
+        .chart-container { height: 400px; width: 100%; }
+        .view-toggle { display: flex; gap: 8px; }
+        .toggle-btn {
+            padding: 8px 16px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: all 0.2s;
+        }
+        .toggle-btn:hover {
+            border-color: var(--primary-light);
+            color: var(--primary);
+        }
+        .toggle-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            color: white;
+        }
+        .date-picker { display: flex; align-items: center; gap: 8px; }
+        .date-input {
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            cursor: pointer;
+        }
+        .date-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .upload-area {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: var(--bg-main);
+        }
+        .upload-area:hover {
+            border-color: var(--primary-light);
+            background: rgba(37, 99, 235, 0.02);
+        }
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: rgba(37, 99, 235, 0.05);
+        }
+        .upload-icon {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+        .upload-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        .upload-hint {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        .upload-hint span { color: var(--primary); font-weight: 500; }
+        .file-input { display: none; }
+        .preview-container { display: none; margin-top: 24px; }
+        .preview-container.show { display: block; }
+        .preview-image {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            object-fit: cover;
+        }
+        .preview-item {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: var(--bg-main);
+            border-radius: var(--radius-sm);
+            position: relative;
+        }
+        .preview-item .remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--danger);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-item .status-badge {
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: var(--border);
+            color: var(--text-secondary);
+        }
+        .preview-item .status-badge.parsing {
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary);
+        }
+        .preview-item .status-badge.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+        .preview-item .status-badge.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        .student-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        .student-table th, .student-table td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        .student-table th {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            background: var(--bg-main);
+        }
+        .student-table td { font-size: 0.875rem; }
+        .student-table tbody tr:hover { background: var(--bg-main); }
+        .score-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            margin: 2px;
+        }
+        .score-tag.bonus {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+        .score-tag.penalty {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+        .switch {
+            position: relative;
+            width: 40px;
+            height: 22px;
+            background: var(--border);
+            border-radius: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .switch.on { background: var(--accent); }
+        .switch::after {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+        .switch.on::after { transform: translateX(18px); }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); }
+        .btn-primary:disabled { background: var(--border); cursor: not-allowed; }
+        .btn-secondary {
+            background: var(--bg-main);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .btn-secondary:hover { background: var(--border); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-text {
+            background: transparent;
+            color: var(--primary);
+            padding: 8px 12px;
+        }
+        .btn-text:hover { background: rgba(37, 99, 235, 0.1); }
+        .btn-sm { padding: 6px 12px; font-size: 0.8125rem; }
+        .form-group { margin-bottom: 20px; }
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            transition: all 0.2s;
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+        .form-input::placeholder { color: var(--text-secondary); }
+        .input-with-icon { position: relative; }
+        .input-with-icon .form-input { padding-left: 40px; }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--bg-main);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+        .tag-remove {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .tag-remove:hover { background: var(--danger); color: white; }
+        .tags-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .loading-overlay.show { display: flex; }
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text {
+            margin-top: 16px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow: hidden;
+            box-shadow: var(--shadow-lg);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-title { font-size: 1.125rem; font-weight: 600; }
+        .modal-close {
+            width: 32px;
+            height: 32px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: all 0.2s;
+        }
+        .modal-close:hover { background: var(--bg-main); color: var(--text-primary); }
+        .modal-body { padding: 24px; max-height: 60vh; overflow-y: auto; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 1001;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .toast {
+            padding: 12px 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-lg);
+            border-left: 4px solid var(--success);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+            min-width: 280px;
+        }
+        .toast.error { border-left-color: var(--danger); }
+        .toast.warning { border-left-color: var(--accent); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+        .legend-dot { width: 12px; height: 12px; border-radius: 3px; }
+        .legend-dot.normal { background: var(--primary); }
+        .legend-dot.focused { background: var(--accent); }
+        .settings-section { margin-bottom: 32px; }
+        .settings-section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 16px;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 16px;
+        }
+        .progress-bar .progress {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        @media (max-width: 768px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+            .header { padding: 0 16px; }
+            .main-container { padding: 16px; }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="text-align: center;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text" id="loadingText">正在处理...</p>
+        </div>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <header class="header">
+        <div class="logo">
+            <div class="logo-icon">📊</div>
+            <span>学生考评积分管理系统</span>
+        </div>
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-tab="dashboard">积分统计</button>
+            <button class="nav-tab" data-tab="upload">上传解析</button>
+            <button class="nav-tab" data-tab="students">学生管理</button>
+            <button class="nav-tab" data-tab="settings">系统设置</button>
+        </nav>
+    </header>
+
+    <main class="main-container">
+        <!-- Dashboard View -->
+        <section class="page-view active" id="dashboardView">
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-label">学生总数</div>
+                    <div class="stat-value" id="totalStudents">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">关注学生</div>
+                    <div class="stat-value" id="focusedStudents">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">今日最高分</div>
+                    <div class="stat-value positive" id="highestScore">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">今日最低分</div>
+                    <div class="stat-value negative" id="lowestScore">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">累积最高分</div>
+                    <div class="stat-value positive" id="cumulativeHighest">0</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">积分排名</div>
+                    <div style="display: flex; gap: 16px; align-items: center;">
+                        <div class="view-toggle">
+                            <button class="toggle-btn active" data-view="daily">当日分数</button>
+                            <button class="toggle-btn" data-view="total">累积总分</button>
+                        </div>
+                        <div class="date-picker">
+                            <input type="date" class="date-input" id="chartDate">
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container" id="scoreChart"></div>
+                    <div class="chart-legend">
+                        <div class="legend-item">
+                            <div class="legend-dot normal"></div>
+                            <span>普通学生</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot focused"></div>
+                            <span>关注学生</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 当日明细表格 -->
+            <div class="card" id="dailyDetailsCard" style="margin-top: 24px;">
+                <div class="card-header">
+                    <div class="card-title">当日明细</div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>加分项</th>
+                                <th>减分项</th>
+                                <th>净得分</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dailyDetailsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Upload View -->
+        <section class="page-view" id="uploadView">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">上传考评图片</div>
+                    <div class="date-picker">
+                        <label style="font-size: 0.875rem; color: var(--text-secondary); margin-right: 8px;">考评日期</label>
+                        <input type="date" class="date-input" id="uploadDate">
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" class="file-input" id="fileInput" accept="image/*" multiple>
+                        <div class="upload-icon">📷</div>
+                        <p class="upload-title">拖拽图片到这里，或点击上传</p>
+                        <p class="upload-hint">支持 <span>jpg</span>、<span>png</span> 格式，可多选，单张最大 10MB</p>
+                    </div>
+
+                    <div class="preview-container" id="previewContainer">
+                        <h4 style="font-size: 0.875rem; font-weight: 600; margin-bottom: 12px;">
+                            已选择的图片 (<span id="imageCount">0</span> 张)
+                        </h4>
+                        <div id="previewImages" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+                        <div class="progress-bar" id="progressBar" style="display: none;">
+                            <div class="progress" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <p id="progressText" style="font-size: 0.875rem; color: var(--text-secondary); margin-top: 8px; display: none;"></p>
+                        <div style="margin-top: 16px; display: flex; gap: 12px;">
+                            <button class="btn btn-primary" id="parseBtn">开始解析</button>
+                            <button class="btn btn-secondary" id="clearBtn">清除全部</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" id="resultCard" style="margin-top: 24px; display: none;">
+                <div class="card-header">
+                    <div class="card-title">解析结果 (<span id="resultCount">0</span> 条记录)</div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-success btn-sm" id="confirmBtn">确认保存</button>
+                        <button class="btn btn-secondary btn-sm" id="cancelBtn">取消</button>
+                    </div>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>加分项</th>
+                                <th>减分项</th>
+                                <th>净得分</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Students View -->
+        <section class="page-view" id="studentsView">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">学生列表</div>
+                    <button class="btn btn-primary btn-sm" id="addStudentBtn">+ 添加学生</button>
+                </div>
+                <div class="card-body" style="padding: 0;">
+                    <table class="student-table">
+                        <thead>
+                            <tr>
+                                <th>学生姓名</th>
+                                <th>累积积分</th>
+                                <th>关注状态</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card" style="margin-top: 24px;">
+                <div class="card-header">
+                    <div class="card-title">关注学生</div>
+                </div>
+                <div class="card-body">
+                    <div class="tags-container" id="focusedTags"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings View -->
+        <section class="page-view" id="settingsView">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">系统设置</div>
+                </div>
+                <div class="card-body">
+                    <div class="settings-section">
+                        <h3 class="settings-section-title">API 配置</h3>
+                        <div class="form-group">
+                            <label class="form-label">SiliconFlow API Key</label>
+                            <div class="input-with-icon">
+                                <span class="input-icon">🔑</span>
+                                <input type="password" class="form-input" id="apiKeyInput" placeholder="请输入你的 SiliconFlow API Key">
+                            </div>
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;">
+                                获取 API Key: <a href="https://cloud.siliconflow.cn" target="_blank" style="color: var(--primary);">https://cloud.siliconflow.cn</a>
+                            </p>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">OCR 模型名称</label>
+                            <input type="text" class="form-input" id="modelInput" placeholder="例如: Qwen/Qwen2.5-VL-32B-Instruct">
+                            <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;">
+                                常用模型: Qwen/Qwen2.5-VL-32B-Instruct, Qwen/Qwen2-VL-72B-Instruct, deepseek-ai/deepseek-vl2
+                            </p>
+                        </div>
+                    </div>
+                    <div class="settings-section">
+                        <h3 class="settings-section-title">数据管理</h3>
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <button class="btn btn-secondary" id="exportBtn">导出数据</button>
+                            <button class="btn btn-secondary" id="importBtn">导入数据</button>
+                            <button class="btn btn-danger" id="clearDataBtn">清空所有数据</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 24px;">
+                        <button class="btn btn-primary" id="saveSettingsBtn">保存设置</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Add Student Modal -->
+    <div class="modal-overlay" id="addStudentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">添加学生</h3>
+                <button class="modal-close" onclick="closeModal('addStudentModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">学生姓名</label>
+                    <input type="text" class="form-input" id="newStudentName" placeholder="请输入学生姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">是否设为关注</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="switch" id="newStudentFocus"></div>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">开启后将在图表中特殊显示</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('addStudentModal')">取消</button>
+                <button class="btn btn-primary" id="confirmAddStudent">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div class="modal-overlay" id="editStudentModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑学生</h3>
+                <button class="modal-close" onclick="closeModal('editStudentModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">学生姓名</label>
+                    <input type="text" class="form-input" id="editStudentName" placeholder="请输入学生姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">累积积分</label>
+                    <input type="number" class="form-input" id="editStudentScore" placeholder="输入新的累积积分">
+                    <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 8px;">修改后系统会自动生成一条调整记录</p>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">是否设为关注</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div class="switch" id="editStudentFocus"></div>
+                        <span style="font-size: 0.875rem; color: var(--text-secondary);">开启后将在图表中特殊显示</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editStudentModal')">取消</button>
+                <button class="btn btn-primary" id="confirmEditStudent">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Record Modal -->
+    <div class="modal-overlay" id="editRecordModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑考评记录</h3>
+                <button class="modal-close" onclick="closeModal('editRecordModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">学生姓名</label>
+                    <input type="text" class="form-input" id="editRecordName">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">加分项 (每行一项，格式: 项目名 分数)</label>
+                    <textarea class="form-input" id="editRecordBonus" rows="3" placeholder="积极发言 2&#10;按时交作业 1"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">减分项 (每行一项，格式: 项目名 分数)</label>
+                    <textarea class="form-input" id="editRecordPenalty" rows="3" placeholder="迟到 1&#10;未交作业 2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editRecordModal')">取消</button>
+                <button class="btn btn-primary" id="confirmEditRecord">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Single Record Modal -->
+    <div class="modal-overlay" id="editSingleRecordModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑记录</h3>
+                <button class="modal-close" onclick="closeModal('editSingleRecordModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">学生姓名</label>
+                    <input type="text" class="form-input" id="editSingleRecordName" placeholder="请输入学生姓名">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">类型</label>
+                    <select class="form-input" id="editSingleRecordType">
+                        <option value="bonus">加分</option>
+                        <option value="penalty">减分</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">项目描述</label>
+                    <input type="text" class="form-input" id="editSingleRecordItem" placeholder="例如：积极发言">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">分数</label>
+                    <input type="number" class="form-input" id="editSingleRecordScore" placeholder="请输入分数" min="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editSingleRecordModal')">取消</button>
+                <button class="btn btn-primary" id="confirmEditSingleRecord">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Student History Modal -->
+    <div class="modal-overlay" id="studentHistoryModal">
+        <div class="modal" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3 class="modal-title" id="studentHistoryTitle">学生得分历史</h3>
+                <button class="modal-close" onclick="closeModal('studentHistoryModal')">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 0; max-height: 500px; overflow-y: auto;">
+                <table class="student-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 120px;">日期</th>
+                            <th>加分项</th>
+                            <th>减分项</th>
+                            <th style="width: 80px;">净得分</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentHistoryTable"></tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('studentHistoryModal')">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==================== API Client ====================
+        const API_BASE = '/api';
+
+        async function apiGet(endpoint) {
+            const response = await fetch(`${API_BASE}${endpoint}`);
+            return response.json();
+        }
+
+        async function apiPost(endpoint, data) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return response.json();
+        }
+
+        async function apiPut(endpoint, data) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(data)
+            });
+            return response.json();
+        }
+
+        async function apiDelete(endpoint) {
+            const response = await fetch(`${API_BASE}${endpoint}`, { method: 'DELETE' });
+            return response.json();
+        }
+
+        async function apiUpload(endpoint, formData) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                method: 'POST',
+                body: formData
+            });
+            return response.json();
+        }
+
+        // ==================== State ====================
+        let currentView = 'daily';
+        let imageFiles = [];  // 存储图片文件和状态
+        let parsedResults = [];  // 所有解析结果
+        let studentsData = [];
+        let chart = null;
+
+        // ==================== Initialize ====================
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            setDefaultDates();
+            loadDashboardData();
+            loadStudentsData();
+            loadSettings();
+            initEventListeners();
+        });
+
+        function setDefaultDates() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('chartDate').value = today;
+            document.getElementById('uploadDate').value = today;
+        }
+
+        function initEventListeners() {
+            // Navigation tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.querySelectorAll('.page-view').forEach(v => v.classList.remove('active'));
+                    document.getElementById(tab.dataset.tab + 'View').classList.add('active');
+                    if (tab.dataset.tab === 'dashboard') loadDashboardData();
+                    else if (tab.dataset.tab === 'students') loadStudentsData();
+                });
+            });
+
+            // View toggle
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentView = btn.dataset.view;
+
+                    // 切换视图时显示/隐藏明细表格
+                    const detailsCard = document.getElementById('dailyDetailsCard');
+                    if (currentView === 'daily') {
+                        detailsCard.style.display = 'block';
+                        loadDailyDetails();
+                    } else {
+                        detailsCard.style.display = 'none';
+                    }
+
+                    loadChartData();
+                });
+            });
+
+            document.getElementById('chartDate').addEventListener('change', loadChartData);
+
+            // Upload area
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            uploadArea.addEventListener('click', () => fileInput.click());
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+            fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+
+            // Parse button
+            document.getElementById('parseBtn').addEventListener('click', startParsing);
+            document.getElementById('clearBtn').addEventListener('click', clearAllImages);
+            document.getElementById('confirmBtn').addEventListener('click', saveAllResults);
+            document.getElementById('cancelBtn').addEventListener('click', () => {
+                document.getElementById('resultCard').style.display = 'none';
+            });
+
+            // Student management
+            document.getElementById('addStudentBtn').addEventListener('click', () => {
+                document.getElementById('newStudentName').value = '';
+                document.getElementById('newStudentFocus').classList.remove('on');
+                openModal('addStudentModal');
+            });
+            document.getElementById('confirmAddStudent').addEventListener('click', addStudent);
+            document.getElementById('confirmEditStudent').addEventListener('click', updateStudent);
+            document.getElementById('confirmEditRecord').addEventListener('click', saveRecordEdit);
+            document.getElementById('confirmEditSingleRecord').addEventListener('click', saveSingleRecordEdit);
+
+            // Settings
+            document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFileInput').click());
+            document.getElementById('clearDataBtn').addEventListener('click', clearAllData);
+
+            // 隐藏的文件输入框
+            const importFileInput = document.createElement('input');
+            importFileInput.type = 'file';
+            importFileInput.id = 'importFileInput';
+            importFileInput.accept = '.json';
+            importFileInput.style.display = 'none';
+            importFileInput.addEventListener('change', handleImportFile);
+            document.body.appendChild(importFileInput);
+
+            // Switch toggles
+            document.querySelectorAll('.switch').forEach(sw => {
+                sw.addEventListener('click', function() { this.classList.toggle('on'); });
+            });
+
+            // Modal overlay clicks
+            document.querySelectorAll('.modal-overlay').forEach(overlay => {
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) overlay.classList.remove('show');
+                });
+            });
+        }
+
+        // ==================== Chart ====================
+        function initChart() {
+            chart = echarts.init(document.getElementById('scoreChart'));
+            chart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: { type: 'shadow' },
+                    formatter: (params) => {
+                        const item = params[0];
+                        return `${item.name}<br/>积分: ${item.value > 0 ? '+' : ''}${item.value}`;
+                    }
+                },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: { type: 'category', data: [], axisLabel: { rotate: 45, fontSize: 11 } },
+                yAxis: { type: 'value', axisLabel: { formatter: '{value}' } },
+                series: [{
+                    type: 'bar',
+                    data: [],
+                    barWidth: '60%',
+                    label: {
+                        show: true,
+                        position: 'top',
+                        formatter: (params) => params.value > 0 ? '+' + params.value : params.value,
+                        fontSize: 11,
+                        color: '#64748b'
+                    }
+                }]
+            });
+            window.addEventListener('resize', () => chart.resize());
+        }
+
+        async function loadDashboardData() {
+            try {
+                const date = document.getElementById('chartDate').value;
+                const [statsRes, chartRes] = await Promise.all([
+                    apiGet(`/stats/?date=${date}`),
+                    apiGet(`/records/?type=${currentView}&date=${date}`)
+                ]);
+
+                if (statsRes.success) {
+                    document.getElementById('totalStudents').textContent = statsRes.data.total_students;
+                    document.getElementById('focusedStudents').textContent = statsRes.data.focused_students;
+                    document.getElementById('highestScore').textContent = statsRes.data.highest_score > 0 ? '+' + statsRes.data.highest_score : statsRes.data.highest_score;
+                    document.getElementById('lowestScore').textContent = statsRes.data.lowest_score > 0 ? '+' + statsRes.data.lowest_score : statsRes.data.lowest_score;
+                    document.getElementById('cumulativeHighest').textContent = statsRes.data.cumulative_highest > 0 ? '+' + statsRes.data.cumulative_highest : statsRes.data.cumulative_highest;
+                }
+                updateChart(chartRes);
+
+                // 加载当日明细（仅当日分数模式）
+                if (currentView === 'daily') {
+                    await loadDailyDetails();
+                }
+            } catch (error) {
+                console.error('Failed to load dashboard:', error);
+            }
+        }
+
+        async function loadChartData() {
+            try {
+                const date = document.getElementById('chartDate').value;
+                const res = await apiGet(`/records/?type=${currentView}&date=${date}`);
+                updateChart(res);
+
+                // 加载当日明细（仅当日分数模式）
+                if (currentView === 'daily') {
+                    await loadDailyDetails();
+                }
+            } catch (error) {
+                console.error('Failed to load chart:', error);
+            }
+        }
+
+        // ==================== 当日明细 ====================
+        async function loadDailyDetails() {
+            try {
+                const date = document.getElementById('chartDate').value;
+                const res = await apiGet(`/records/daily-details/?date=${date}`);
+
+                const card = document.getElementById('dailyDetailsCard');
+                const tbody = document.getElementById('dailyDetailsTable');
+
+                if (currentView !== 'daily') {
+                    card.style.display = 'none';
+                    return;
+                }
+
+                card.style.display = 'block';
+
+                if (!res.success || !res.data.records.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-secondary);">当日暂无明细数据</td></tr>';
+                    return;
+                }
+
+                let html = '';
+                res.data.records.forEach(r => {
+                    // 加分项
+                    r.bonus.forEach(b => {
+                        html += `
+                            <tr>
+                                <td style="font-weight: ${r.is_focused ? '600' : '400'}; color: ${r.is_focused ? 'var(--accent)' : 'var(--text-primary)'}">
+                                    ${r.student_name} ${r.is_focused ? '⭐' : ''}
+                                </td>
+                                <td>
+                                    <span class="score-tag bonus" style="cursor: pointer;" onclick="editSingleRecord(${b.id})">+${b.score} ${b.item}</span>
+                                </td>
+                                <td>-</td>
+                                <td style="font-weight: 600; color: var(--success)">+${b.score}</td>
+                                <td>
+                                    <button class="btn btn-text btn-sm" onclick="editSingleRecord(${b.id})">编辑</button>
+                                    <button class="btn btn-text btn-sm" style="color: var(--danger);" onclick="deleteSingleRecord(${b.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                    // 减分项
+                    r.penalty.forEach(p => {
+                        html += `
+                            <tr>
+                                <td style="font-weight: ${r.is_focused ? '600' : '400'}; color: ${r.is_focused ? 'var(--accent)' : 'var(--text-primary)'}">
+                                    ${r.student_name} ${r.is_focused ? '⭐' : ''}
+                                </td>
+                                <td>-</td>
+                                <td>
+                                    <span class="score-tag penalty" style="cursor: pointer;" onclick="editSingleRecord(${p.id})">-${p.score} ${p.item}</span>
+                                </td>
+                                <td style="font-weight: 600; color: var(--danger)">-${p.score}</td>
+                                <td>
+                                    <button class="btn btn-text btn-sm" onclick="editSingleRecord(${p.id})">编辑</button>
+                                    <button class="btn btn-text btn-sm" style="color: var(--danger);" onclick="deleteSingleRecord(${p.id})">删除</button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                });
+                tbody.innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load daily details:', error);
+            }
+        }
+
+        window.editSingleRecord = async function(recordId) {
+            try {
+                const res = await apiGet(`/records/${recordId}/`);
+                if (!res.success) {
+                    showToast('获取记录详情失败', 'error');
+                    return;
+                }
+
+                window.currentEditRecordId = recordId;
+                document.getElementById('editSingleRecordName').value = res.data.student_name;
+                document.getElementById('editSingleRecordItem').value = res.data.item;
+                document.getElementById('editSingleRecordScore').value = res.data.score;
+                document.getElementById('editSingleRecordType').value = res.data.type;
+                openModal('editSingleRecordModal');
+            } catch (error) {
+                showToast('获取记录详情失败: ' + error.message, 'error');
+            }
+        };
+
+        async function saveSingleRecordEdit() {
+            const recordId = window.currentEditRecordId;
+            const studentName = document.getElementById('editSingleRecordName').value.trim();
+            const item = document.getElementById('editSingleRecordItem').value.trim();
+            const score = document.getElementById('editSingleRecordScore').value;
+            const type = document.getElementById('editSingleRecordType').value;
+
+            if (!studentName) {
+                showToast('请输入学生姓名', 'error');
+                return;
+            }
+            if (!item) {
+                showToast('请输入项目描述', 'error');
+                return;
+            }
+            if (!score || parseInt(score) <= 0) {
+                showToast('请输入有效的分数', 'error');
+                return;
+            }
+
+            try {
+                const res = await apiPut(`/records/${recordId}/update/`, {
+                    student_name: studentName,
+                    item: item,
+                    score: parseInt(score),
+                    type: type
+                });
+
+                if (res.success) {
+                    showToast('修改成功');
+                    closeModal('editSingleRecordModal');
+                    loadDashboardData();
+                } else {
+                    showToast(res.error || '修改失败', 'error');
+                }
+            } catch (error) {
+                showToast('修改失败: ' + error.message, 'error');
+            }
+        }
+
+        window.deleteSingleRecord = async function(recordId) {
+            if (!confirm('确定要删除该条记录吗？')) return;
+
+            try {
+                const res = await apiDelete(`/records/${recordId}/delete/`);
+                if (res.success) {
+                    showToast('删除成功');
+                    loadDashboardData();
+                } else {
+                    showToast(res.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
+        };
+
+        function updateChart(res) {
+            if (!res.success || !res.data.records.length) {
+                chart.setOption({ xAxis: { data: [] }, series: [{ data: [] }] });
+                return;
+            }
+            const records = res.data.records.sort((a, b) => b.score - a.score);
+
+            // 保存记录数据用于点击事件
+            window.currentChartRecords = records;
+
+            // 计算排名（同分同名次，后续顺延）
+            let rank = 1;
+            records.forEach((r, i) => {
+                if (i > 0 && r.score < records[i - 1].score) {
+                    rank = i + 1;
+                }
+                r.rank = rank;
+            });
+
+            chart.setOption({
+                tooltip: {
+                    formatter: (params) => {
+                        const item = params[0];
+                        const dataItem = records[item.dataIndex];
+                        return `${item.name}<br/>排名: 第${dataItem.rank}名<br/>积分: ${item.value > 0 ? '+' : ''}${item.value}<br/><span style="color:#999;font-size:12px;">点击查看历史</span>`;
+                    }
+                },
+                xAxis: {
+                    data: records.map(r => r.name),
+                    axisLabel: {
+                        rotate: 45,
+                        fontSize: 11,
+                        formatter: (name) => name,
+                        color: (value, index) => records[index]?.is_focused ? '#f59e0b' : '#1e293b'
+                    },
+                    triggerEvent: true  // 启用X轴标签点击事件
+                },
+                series: [{
+                    data: records.map(r => ({
+                        value: r.score,
+                        itemStyle: { color: r.is_focused ? '#f59e0b' : '#2563eb', borderRadius: [4, 4, 0, 0] }
+                    }))
+                }]
+            });
+
+            // 绑定点击事件（只绑定一次）
+            chart.off('click');
+            chart.on('click', (params) => {
+                let studentId;
+                if (params.componentType === 'series') {
+                    // 点击柱子
+                    studentId = records[params.dataIndex]?.id;
+                } else if (params.componentType === 'xAxis') {
+                    // 点击X轴标签
+                    studentId = records[params.value]?.id;
+                }
+                if (studentId) {
+                    showStudentHistory(studentId);
+                }
+            });
+        }
+
+        // ==================== 学生历史记录 ====================
+        async function showStudentHistory(studentId) {
+            try {
+                const res = await apiGet(`/students/${studentId}/history/`);
+                if (!res.success) {
+                    showToast('获取学生历史记录失败', 'error');
+                    return;
+                }
+
+                const data = res.data;
+                window.currentHistoryStudentId = studentId;
+
+                // 更新模态框标题
+                document.getElementById('studentHistoryTitle').textContent =
+                    `${data.student_name} 的得分历史 (总分: ${data.total_score >= 0 ? '+' : ''}${data.total_score})`;
+
+                const tbody = document.getElementById('studentHistoryTable');
+
+                if (!data.history || data.history.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">暂无得分记录</td></tr>';
+                } else {
+                    tbody.innerHTML = data.history.map(h => `
+                        <tr>
+                            <td style="font-weight: 500;">${h.date}</td>
+                            <td>
+                                ${h.bonus.length ? h.bonus.map(b => `<span class="score-tag bonus">+${b.score} ${b.item}</span>`).join(' ') : '-'}
+                            </td>
+                            <td>
+                                ${h.penalty.length ? h.penalty.map(p => `<span class="score-tag penalty">-${p.score} ${p.item}</span>`).join(' ') : '-'}
+                            </td>
+                            <td style="font-weight: 600; color: ${h.net_score >= 0 ? 'var(--success)' : 'var(--danger)'}">
+                                ${h.net_score >= 0 ? '+' : ''}${h.net_score}
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+
+                openModal('studentHistoryModal');
+            } catch (error) {
+                showToast('获取历史记录失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== File Upload ====================
+        function handleFiles(files) {
+            for (const file of files) {
+                if (!file.type.startsWith('image/')) continue;
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast(`图片 ${file.name} 超过10MB，已跳过`, 'error');
+                    continue;
+                }
+                const item = { file, status: 'pending', result: null, dataUrl: null };
+                imageFiles.push(item);
+                // 预读取 dataURL 并缓存，避免渲染时重复异步读取
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    item.dataUrl = e.target.result;
+                    renderPreviews();
+                };
+                reader.readAsDataURL(file);
+            }
+            renderPreviews();
+        }
+
+        function renderPreviews() {
+            const container = document.getElementById('previewImages');
+            container.innerHTML = '';
+            document.getElementById('imageCount').textContent = imageFiles.length;
+
+            imageFiles.forEach((item, index) => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                const imgSrc = item.dataUrl || '';
+                const errorMsg = item.status === 'error' && item.result
+                    ? `<p style="font-size: 0.75rem; color: var(--danger); margin: 4px 0 0; word-break: break-all;">失败原因: ${item.result}</p>`
+                    : '';
+                div.innerHTML = `
+                    ${imgSrc ? `<img src="${imgSrc}" class="preview-image">` : '<div class="preview-image" style="background:var(--border);display:flex;align-items:center;justify-content:center;font-size:0.75rem;color:var(--text-secondary);">加载中...</div>'}
+                    <button class="remove-btn" onclick="removeImage(${index})">✕</button>
+                    <span class="status-badge ${item.status}">${getStatusText(item.status)}</span>
+                    ${errorMsg}
+                `;
+                container.appendChild(div);
+            });
+
+            document.getElementById('previewContainer').classList.toggle('show', imageFiles.length > 0);
+        }
+
+        function getStatusText(status) {
+            const map = { pending: '待解析', parsing: '解析中...', success: '成功', error: '失败' };
+            return map[status] || status;
+        }
+
+        window.removeImage = function(index) {
+            imageFiles.splice(index, 1);
+            renderPreviews();
+        };
+
+        function clearAllImages() {
+            imageFiles = [];
+            parsedResults = [];
+            document.getElementById('fileInput').value = '';
+            document.getElementById('previewContainer').classList.remove('show');
+            document.getElementById('resultCard').style.display = 'none';
+            renderPreviews();
+        }
+
+        // ==================== Multi-image Parsing ====================
+        async function startParsing() {
+            if (imageFiles.length === 0) {
+                showToast('请先选择图片', 'error');
+                return;
+            }
+
+            const pendingImages = imageFiles.filter(f => f.status === 'pending');
+            if (pendingImages.length === 0) {
+                showToast('所有图片已解析完成', 'warning');
+                return;
+            }
+
+            parsedResults = [];
+            document.getElementById('parseBtn').disabled = true;
+            document.getElementById('progressBar').style.display = 'block';
+            document.getElementById('progressText').style.display = 'block';
+
+            let completed = 0;
+            for (let i = 0; i < imageFiles.length; i++) {
+                const item = imageFiles[i];
+                if (item.status !== 'pending') continue;
+
+                item.status = 'parsing';
+                renderPreviews();
+                document.getElementById('progressText').textContent = `正在解析第 ${completed + 1}/${pendingImages.length} 张图片...`;
+
+                const formData = new FormData();
+                formData.append('image', item.file);
+
+                try {
+                    const res = await apiUpload('/parse/', formData);
+                    if (res.success && res.data.students) {
+                        item.status = 'success';
+                        item.result = res.data.students;
+                        parsedResults.push(...res.data.students);
+                    } else {
+                        item.status = 'error';
+                        item.result = res.error || '解析失败';
+                    }
+                } catch (error) {
+                    item.status = 'error';
+                    item.result = error.message;
+                }
+
+                completed++;
+                document.getElementById('progressFill').style.width = `${(completed / pendingImages.length) * 100}%`;
+                renderPreviews();
+            }
+
+            document.getElementById('parseBtn').disabled = false;
+            document.getElementById('progressText').textContent = `解析完成，共 ${parsedResults.length} 条记录`;
+
+            if (parsedResults.length > 0) {
+                showResults();
+            } else {
+                showToast('没有解析到任何数据', 'error');
+            }
+        }
+
+        function showResults() {
+            const tbody = document.getElementById('resultTable');
+            tbody.innerHTML = '';
+            document.getElementById('resultCount').textContent = parsedResults.length;
+
+            parsedResults.forEach((r, index) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${r.name}</td>
+                    <td>${r.bonus?.length ? r.bonus.map(b => `<span class="score-tag bonus">+${b.score} ${b.item}</span>`).join(' ') : '-'}</td>
+                    <td>${r.penalty?.length ? r.penalty.map(p => `<span class="score-tag penalty">-${p.score} ${p.item}</span>`).join(' ') : '-'}</td>
+                    <td style="font-weight: 600; color: ${r.net_score >= 0 ? 'var(--success)' : 'var(--danger)'}">${r.net_score >= 0 ? '+' : ''}${r.net_score}</td>
+                    <td>
+                        <button class="btn btn-text btn-sm" onclick="editRecord(${index})">编辑</button>
+                        <button class="btn btn-text btn-sm" style="color: var(--danger);" onclick="deleteRecord(${index})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('resultCard').style.display = 'block';
+        }
+
+        window.editRecord = function(index) {
+            const record = parsedResults[index];
+            window.currentEditIndex = index;
+            document.getElementById('editRecordName').value = record.name;
+            document.getElementById('editRecordBonus').value = (record.bonus || []).map(b => `${b.item} ${b.score}`).join('\n');
+            document.getElementById('editRecordPenalty').value = (record.penalty || []).map(p => `${p.item} ${p.score}`).join('\n');
+            openModal('editRecordModal');
+        };
+
+        function saveRecordEdit() {
+            const index = window.currentEditIndex;
+            const record = parsedResults[index];
+            record.name = document.getElementById('editRecordName').value.trim();
+
+            record.bonus = [];
+            record.penalty = [];
+
+            document.getElementById('editRecordBonus').value.trim().split('\n').forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    const score = parseInt(parts.pop());
+                    if (!isNaN(score)) record.bonus.push({ item: parts.join(' '), score });
+                }
+            });
+
+            document.getElementById('editRecordPenalty').value.trim().split('\n').forEach(line => {
+                const parts = line.trim().split(/\s+/);
+                if (parts.length >= 2) {
+                    const score = parseInt(parts.pop());
+                    if (!isNaN(score)) record.penalty.push({ item: parts.join(' '), score });
+                }
+            });
+
+            record.net_score = record.bonus.reduce((s, b) => s + b.score, 0) - record.penalty.reduce((s, p) => s + p.score, 0);
+            closeModal('editRecordModal');
+            showResults();
+        }
+
+        window.deleteRecord = function(index) {
+            if (confirm('确定要删除该记录吗？')) {
+                parsedResults.splice(index, 1);
+                showResults();
+            }
+        };
+
+        async function saveAllResults() {
+            if (parsedResults.length === 0) {
+                showToast('没有数据可保存', 'error');
+                return;
+            }
+
+            showLoading('正在保存数据...');
+            try {
+                const date = document.getElementById('uploadDate').value;
+                const res = await apiPost('/records/save/', { date, students: parsedResults });
+
+                hideLoading();
+                if (res.success) {
+                    showToast(`成功保存 ${res.data.saved_count} 条记录`);
+                    clearAllImages();
+                } else {
+                    showToast(res.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Students Management ====================
+        async function loadStudentsData() {
+            try {
+                const res = await apiGet('/students/');
+                if (res.success) {
+                    studentsData = res.data;
+                    renderStudentsTable();
+                    renderFocusedTags();
+                }
+            } catch (error) {
+                console.error('Failed to load students:', error);
+            }
+        }
+
+        function renderStudentsTable() {
+            const tbody = document.getElementById('studentsTable');
+            tbody.innerHTML = '';
+
+            if (studentsData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-secondary);">暂无学生数据，请先上传考评图片</td></tr>';
+                return;
+            }
+
+            studentsData.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${s.name}</td>
+                    <td style="font-weight: 500;">${s.total_score >= 0 ? '+' : ''}${s.total_score}</td>
+                    <td>
+                        <div class="switch ${s.is_focused ? 'on' : ''}" data-id="${s.id}" onclick="toggleFocus(${s.id})"></div>
+                    </td>
+                    <td>
+                        <button class="btn btn-text btn-sm" onclick="editStudent(${s.id})">编辑</button>
+                        <button class="btn btn-text btn-sm" style="color: var(--danger);" onclick="deleteStudent(${s.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderFocusedTags() {
+            const container = document.getElementById('focusedTags');
+            const focused = studentsData.filter(s => s.is_focused);
+
+            if (focused.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.875rem;">暂无关注学生</span>';
+                return;
+            }
+
+            container.innerHTML = focused.map(s => `
+                <div class="tag">
+                    <span>${s.name}</span>
+                    <span class="tag-remove" onclick="removeFocus(${s.id})">✕</span>
+                </div>
+            `).join('');
+        }
+
+        async function addStudent() {
+            const name = document.getElementById('newStudentName').value.trim();
+            if (!name) {
+                showToast('请输入学生姓名', 'error');
+                return;
+            }
+
+            const isFocused = document.getElementById('newStudentFocus').classList.contains('on');
+            try {
+                const res = await apiPost('/students/add/', { name, is_focused: isFocused });
+                if (res.success) {
+                    showToast('添加成功');
+                    closeModal('addStudentModal');
+                    loadStudentsData();
+                } else {
+                    showToast(res.error || '添加失败', 'error');
+                }
+            } catch (error) {
+                showToast('添加失败: ' + error.message, 'error');
+            }
+        }
+
+        window.editStudent = function(id) {
+            const student = studentsData.find(s => s.id === id);
+            if (!student) return;
+
+            window.currentEditStudentId = id;
+            document.getElementById('editStudentName').value = student.name;
+            document.getElementById('editStudentScore').value = student.total_score;
+            document.getElementById('editStudentFocus').classList.toggle('on', student.is_focused);
+            openModal('editStudentModal');
+        };
+
+        async function updateStudent() {
+            const id = window.currentEditStudentId;
+            const name = document.getElementById('editStudentName').value.trim();
+            const isFocused = document.getElementById('editStudentFocus').classList.contains('on');
+
+            if (!name) {
+                showToast('请输入学生姓名', 'error');
+                return;
+            }
+
+            try {
+                const totalScore = document.getElementById('editStudentScore').value;
+                const payload = { name, is_focused: isFocused };
+                if (totalScore !== '') payload.total_score = parseInt(totalScore);
+                const res = await apiPut(`/students/${id}/`, payload);
+                if (res.success) {
+                    showToast('保存成功');
+                    closeModal('editStudentModal');
+                    loadStudentsData();
+                } else {
+                    showToast(res.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                showToast('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        window.deleteStudent = async function(id) {
+            if (!confirm('确定要删除该学生吗？相关积分记录也会被删除。')) return;
+
+            try {
+                const res = await apiDelete(`/students/${id}/delete/`);
+                if (res.success) {
+                    showToast('删除成功');
+                    loadStudentsData();
+                } else {
+                    showToast(res.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
+        };
+
+        window.toggleFocus = async function(id) {
+            const student = studentsData.find(s => s.id === id);
+            if (!student) return;
+
+            try {
+                const res = await apiPut(`/students/${id}/`, { is_focused: !student.is_focused });
+                if (res.success) loadStudentsData();
+            } catch (error) {
+                showToast('操作失败', 'error');
+            }
+        };
+
+        window.removeFocus = async function(id) {
+            try {
+                const res = await apiPut(`/students/${id}/`, { is_focused: false });
+                if (res.success) loadStudentsData();
+            } catch (error) {
+                showToast('操作失败', 'error');
+            }
+        };
+
+        // ==================== Settings ====================
+        async function loadSettings() {
+            try {
+                const [apiKeyRes, modelRes] = await Promise.all([
+                    apiGet('/config/siliconflow_api_key/'),
+                    apiGet('/config/siliconflow_model/')
+                ]);
+                if (apiKeyRes.success) document.getElementById('apiKeyInput').value = apiKeyRes.data.value || '';
+                if (modelRes.success) document.getElementById('modelInput').value = modelRes.data.value || '';
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+            }
+        }
+
+        async function saveSettings() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            const model = document.getElementById('modelInput').value.trim();
+
+            showLoading('正在保存设置...');
+            try {
+                await Promise.all([
+                    apiPut('/config/siliconflow_api_key/set/', { value: apiKey }),
+                    apiPut('/config/siliconflow_model/set/', { value: model })
+                ]);
+                hideLoading();
+                showToast('设置保存成功');
+            } catch (error) {
+                hideLoading();
+                showToast('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        async function exportData() {
+            showLoading('正在导出数据...');
+            try {
+                const res = await apiGet('/data/export/');
+                hideLoading();
+
+                if (res.success) {
+                    // 创建下载文件
+                    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `classrank_backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('数据导出成功');
+                } else {
+                    showToast(res.error || '导出失败', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('导出失败: ' + error.message, 'error');
+            }
+        }
+
+        async function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            showLoading('正在导入数据...');
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                const res = await apiPost('/data/import/', data);
+                hideLoading();
+
+                if (res.success) {
+                    showToast(`导入成功：${res.data.imported_students} 名学生，${res.data.imported_records} 条记录`);
+                    loadDashboardData();
+                    loadStudentsData();
+                } else {
+                    showToast(res.error || '导入失败', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('导入失败: ' + error.message, 'error');
+            }
+
+            // 清空文件输入
+            event.target.value = '';
+        }
+
+        async function clearAllData() {
+            if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+            if (!confirm('再次确认：真的要删除所有学生和积分记录吗？')) return;
+
+            showLoading('正在清空数据...');
+            try {
+                const res = await apiPost('/data/clear/', {});
+                hideLoading();
+
+                if (res.success) {
+                    showToast('所有数据已清空');
+                    loadDashboardData();
+                    loadStudentsData();
+                } else {
+                    showToast(res.error || '清空失败', 'error');
+                }
+            } catch (error) {
+                hideLoading();
+                showToast('清空失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== Utilities ====================
+        function showLoading(text = '正在处理...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `
+                <span style="font-size: 1.25rem;">${type === 'success' ? '✓' : type === 'error' ? '✕' : '⚠'}</span>
+                <span>${message}</span>
+            `;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        window.openModal = function(modalId) {
+            document.getElementById(modalId).classList.add('show');
+        };
+
+        window.closeModal = function(modalId) {
+            document.getElementById(modalId).classList.remove('show');
+        };
+    </script>
+</body>
+</html>
