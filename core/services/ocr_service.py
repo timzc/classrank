@@ -4,6 +4,8 @@ SiliconFlow OCR Service
 import base64
 import json
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from django.conf import settings
 from core.models import Config
 
@@ -47,6 +49,25 @@ class OCRService:
         self.api_key = self._get_api_key()
         self.model = self._get_model()
         self.api_url = settings.SILICONFLOW_API_URL
+        self.session = self._create_session()
+
+    def _create_session(self):
+        """创建带重试机制的requests session"""
+        session = requests.Session()
+
+        # 配置重试策略
+        retry_strategy = Retry(
+            total=3,  # 最多重试3次
+            backoff_factor=1,  # 重试间隔: 1s, 2s, 4s
+            status_forcelist=[429, 500, 502, 503, 504],  # 这些状态码触发重试
+            allowed_methods=["POST"],  # 允许POST请求重试
+        )
+
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("https://", adapter)
+        session.mount("http://", adapter)
+
+        return session
 
     def _get_api_key(self):
         """获取API Key，优先从数据库配置，其次从环境变量"""
@@ -136,7 +157,7 @@ class OCRService:
                     'error': '未配置API Key，请在系统设置中配置SiliconFlow API Key'
                 }
 
-            response = requests.post(
+            response = self.session.post(
                 self.api_url,
                 json=payload,
                 headers=headers,
@@ -172,6 +193,21 @@ class OCRService:
                 'data': parsed_result
             }
 
+        except requests.exceptions.SSLError as e:
+            return {
+                'success': False,
+                'error': 'SSL连接错误，请检查网络环境或稍后重试。如问题持续，请尝试使用手动输入功能。'
+            }
+        except requests.exceptions.ConnectionError as e:
+            return {
+                'success': False,
+                'error': '网络连接失败，请检查网络后重试'
+            }
+        except requests.exceptions.Timeout as e:
+            return {
+                'success': False,
+                'error': '请求超时，请稍后重试'
+            }
         except requests.exceptions.RequestException as e:
             return {
                 'success': False,

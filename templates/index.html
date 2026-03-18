@@ -699,6 +699,14 @@
                     </div>
                 </div>
                 <div class="card-body">
+                    <!-- Mode Toggle -->
+                    <div class="mode-toggle" style="display: flex; gap: 8px; margin-bottom: 20px;">
+                        <button class="btn btn-primary mode-btn active" id="uploadModeBtn" onclick="switchInputMode('upload')">图片上传</button>
+                        <button class="btn btn-secondary mode-btn" id="manualModeBtn" onclick="switchInputMode('manual')">手动输入</button>
+                    </div>
+
+                    <!-- Upload Mode -->
+                    <div id="uploadModeSection">
                     <div class="upload-area" id="uploadArea">
                         <input type="file" class="file-input" id="fileInput" accept="image/*" multiple>
                         <div class="upload-icon">📷</div>
@@ -718,6 +726,45 @@
                         <div style="margin-top: 16px; display: flex; gap: 12px;">
                             <button class="btn btn-primary" id="parseBtn">开始解析</button>
                             <button class="btn btn-secondary" id="clearBtn">清除全部</button>
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- Manual JSON Input Mode -->
+                    <div id="manualModeSection" style="display: none;">
+                        <div style="margin-bottom: 12px;">
+                            <p style="font-size: 0.875rem; color: var(--text-secondary); margin-bottom: 8px;">
+                                请输入JSON格式的解析数据（可参考下方模板，或将模板复制给AI生成）
+                            </p>
+                        </div>
+                        <textarea id="manualJsonInput" style="width: 100%; height: 320px; font-family: 'SF Mono', Monaco, 'Courier New', monospace; font-size: 0.875rem; padding: 16px; border: 1px solid var(--border); border-radius: 8px; resize: vertical; line-height: 1.6;">{
+  "students": [
+    {
+      "name": "张三",
+      "bonus": [
+        {"item": "课堂表现优秀", "score": 2},
+        {"item": "作业完成", "score": 1}
+      ],
+      "penalty": [
+        {"item": "迟到", "score": 1}
+      ],
+      "net_score": 2
+    },
+    {
+      "name": "李四",
+      "bonus": [
+        {"item": "帮助同学", "score": 1}
+      ],
+      "penalty": [],
+      "net_score": 1
+    }
+  ],
+  "class_info": "",
+  "date": ""
+}</textarea>
+                        <div style="margin-top: 16px; display: flex; gap: 12px;">
+                            <button class="btn btn-primary" id="manualParseBtn" onclick="parseManualJson()">解析JSON</button>
+                            <button class="btn btn-secondary" onclick="clearManualInput()">清空输入</button>
                         </div>
                     </div>
                 </div>
@@ -1514,6 +1561,123 @@
             document.getElementById('previewContainer').classList.remove('show');
             document.getElementById('resultCard').style.display = 'none';
             renderPreviews();
+        }
+
+        // ==================== Input Mode Toggle ====================
+        function switchInputMode(mode) {
+            const uploadBtn = document.getElementById('uploadModeBtn');
+            const manualBtn = document.getElementById('manualModeBtn');
+            const uploadSection = document.getElementById('uploadModeSection');
+            const manualSection = document.getElementById('manualModeSection');
+
+            if (mode === 'upload') {
+                uploadBtn.classList.remove('btn-secondary');
+                uploadBtn.classList.add('btn-primary', 'active');
+                manualBtn.classList.remove('btn-primary', 'active');
+                manualBtn.classList.add('btn-secondary');
+                uploadSection.style.display = 'block';
+                manualSection.style.display = 'none';
+            } else {
+                manualBtn.classList.remove('btn-secondary');
+                manualBtn.classList.add('btn-primary', 'active');
+                uploadBtn.classList.remove('btn-primary', 'active');
+                uploadBtn.classList.add('btn-secondary');
+                uploadSection.style.display = 'none';
+                manualSection.style.display = 'block';
+            }
+
+            // Clear results when switching mode
+            parsedResults = [];
+            document.getElementById('resultCard').style.display = 'none';
+        }
+
+        function parseManualJson() {
+            const jsonText = document.getElementById('manualJsonInput').value.trim();
+
+            if (!jsonText) {
+                showToast('请输入JSON数据', 'error');
+                return;
+            }
+
+            try {
+                const data = JSON.parse(jsonText);
+
+                if (!data.students || !Array.isArray(data.students)) {
+                    showToast('JSON格式错误：缺少students数组', 'error');
+                    return;
+                }
+
+                // Validate and process each student
+                parsedResults = [];
+                for (const student of data.students) {
+                    if (!student.name) {
+                        showToast('学生数据缺少姓名字段', 'error');
+                        return;
+                    }
+
+                    const bonus = (student.bonus || []).map(b => ({
+                        item: b.item || '',
+                        score: parseInt(b.score) || 0
+                    }));
+
+                    const penalty = (student.penalty || []).map(p => ({
+                        item: p.item || '',
+                        score: parseInt(p.score) || 0
+                    }));
+
+                    const netScore = student.net_score !== undefined
+                        ? parseInt(student.net_score)
+                        : bonus.reduce((s, b) => s + b.score, 0) - penalty.reduce((s, p) => s + p.score, 0);
+
+                    parsedResults.push({
+                        name: student.name,
+                        bonus,
+                        penalty,
+                        net_score: netScore
+                    });
+                }
+
+                if (parsedResults.length === 0) {
+                    showToast('没有解析到学生数据', 'error');
+                    return;
+                }
+
+                showToast(`成功解析 ${parsedResults.length} 条记录`);
+                showResults();
+
+            } catch (e) {
+                showToast('JSON解析失败: ' + e.message, 'error');
+            }
+        }
+
+        function clearManualInput() {
+            document.getElementById('manualJsonInput').value = `{
+  "students": [
+    {
+      "name": "张三",
+      "bonus": [
+        {"item": "课堂表现优秀", "score": 2},
+        {"item": "作业完成", "score": 1}
+      ],
+      "penalty": [
+        {"item": "迟到", "score": 1}
+      ],
+      "net_score": 2
+    },
+    {
+      "name": "李四",
+      "bonus": [
+        {"item": "帮助同学", "score": 1}
+      ],
+      "penalty": [],
+      "net_score": 1
+    }
+  ],
+  "class_info": "",
+  "date": ""
+}`;
+            parsedResults = [];
+            document.getElementById('resultCard').style.display = 'none';
         }
 
         // ==================== Multi-image Parsing ====================
