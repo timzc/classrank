@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
-from django.db.models import Sum, Max
+from django.db.models import Sum, Max, Q, Case, When, Value, IntegerField
 
 from .models import Student, ScoreRecord, Config
 from .services.ocr_service import OCRService
@@ -258,6 +258,8 @@ def update_record(request, record_id):
         if not student_name:
             return json_response({'success': False, 'error': '学生姓名不能为空'}, 400)
 
+        old_student = None
+
         # 更新学生
         if student_name != record.student.name:
             new_student, created = Student.objects.get_or_create(
@@ -266,12 +268,9 @@ def update_record(request, record_id):
             )
             old_student = record.student
             record.student = new_student
-            # 清理无记录的学生
-            if old_student.records.count() == 0 and not old_student.is_focused:
-                old_student.delete()
 
         # 更新其他字段
-        if item:
+        if item is not None:
             record.item = item
         if score is not None:
             record.score = int(score)
@@ -279,6 +278,10 @@ def update_record(request, record_id):
             record.type = record_type
 
         record.save()
+
+        # 保存后再检查旧学生是否需要清理
+        if old_student and old_student.records.count() == 0 and not old_student.is_focused:
+            old_student.delete()
 
         return json_response({
             'success': True,
@@ -289,6 +292,38 @@ def update_record(request, record_id):
 
     except ScoreRecord.DoesNotExist:
         return json_response({'success': False, 'error': '记录不存在'}, 404)
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_records_by_date(request):
+    """删除某一天的所有积分记录"""
+    try:
+        record_date = request.GET.get('date')
+        if not record_date:
+            return json_response({'success': False, 'error': '请指定日期'}, 400)
+
+        record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+
+        with transaction.atomic():
+            records = ScoreRecord.objects.filter(date=record_date)
+            deleted_count = records.count()
+            # 找出受影响的学生
+            student_ids = list(records.values_list('student_id', flat=True).distinct())
+            records.delete()
+
+            # 清理没有记录且未关注的学生
+            for student in Student.objects.filter(id__in=student_ids):
+                if student.records.count() == 0 and not student.is_focused:
+                    student.delete()
+
+        return json_response({
+            'success': True,
+            'message': f'已删除 {record_date} 的 {deleted_count} 条记录'
+        })
+
     except Exception as e:
         return json_response({'success': False, 'error': str(e)}, 500)
 
@@ -378,12 +413,27 @@ def get_student_history(request, student_id):
 def list_students(request):
     """获取学生列表"""
     try:
-        students = Student.objects.all()
+        students = Student.objects.annotate(
+            bonus_total=Sum(
+                Case(
+                    When(records__type='bonus', then='records__score'),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+            penalty_total=Sum(
+                Case(
+                    When(records__type='penalty', then='records__score'),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+        )
 
         data = [{
             'id': s.id,
             'name': s.name,
-            'total_score': s.total_score,
+            'total_score': (s.bonus_total or 0) - (s.penalty_total or 0),
             'is_focused': s.is_focused
         } for s in students]
 
@@ -436,29 +486,30 @@ def update_student(request, student_id):
         student = Student.objects.get(pk=student_id)
         data = json.loads(request.body)
 
-        if 'name' in data:
-            student.name = data['name'].strip()
-        if 'is_focused' in data:
-            student.is_focused = data['is_focused']
+        with transaction.atomic():
+            if 'name' in data:
+                student.name = data['name'].strip()
+            if 'is_focused' in data:
+                student.is_focused = data['is_focused']
 
-        student.save()
+            student.save()
 
-        # 处理累积分数调整
-        if 'total_score' in data:
-            desired_total = int(data['total_score'])
-            current_total = student.total_score
-            diff = desired_total - current_total
+            # 处理累积分数调整
+            if 'total_score' in data:
+                desired_total = int(data['total_score'])
+                current_total = student.total_score
+                diff = desired_total - current_total
 
-            if diff != 0:
-                today = date.today()
-                # 创建一条调整记录
-                ScoreRecord.objects.create(
-                    student=student,
-                    date=today,
-                    type='bonus' if diff > 0 else 'penalty',
-                    item='手动调整',
-                    score=abs(diff)
-                )
+                if diff != 0:
+                    today = date.today()
+                    # 创建一条调整记录
+                    ScoreRecord.objects.create(
+                        student=student,
+                        date=today,
+                        type='bonus' if diff > 0 else 'penalty',
+                        item='手动调整',
+                        score=abs(diff)
+                    )
 
         return json_response({
             'success': True,
@@ -577,9 +628,26 @@ def get_stats(request):
         lowest = min(scores) if scores else 0
 
         # 累积最高分
+        cumulative_qs = Student.objects.filter(records__isnull=False).distinct().annotate(
+            bonus_total=Sum(
+                Case(
+                    When(records__type='bonus', then='records__score'),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+            penalty_total=Sum(
+                Case(
+                    When(records__type='penalty', then='records__score'),
+                    default=Value(0),
+                    output_field=IntegerField(),
+                )
+            ),
+        )
         cumulative_max = 0
-        for s in Student.objects.filter(records__isnull=False).distinct():
-            cumulative_max = max(cumulative_max, s.total_score)
+        for s in cumulative_qs:
+            score = (s.bonus_total or 0) - (s.penalty_total or 0)
+            cumulative_max = max(cumulative_max, score)
 
         return json_response({
             'success': True,
@@ -668,14 +736,27 @@ def import_data(request):
                     if isinstance(record_date, str):
                         record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
 
-                    ScoreRecord.objects.create(
+                    record_type = record_data.get('type', 'bonus')
+                    item = record_data.get('item', '')
+                    score = record_data.get('score', 0)
+
+                    # 跳过已存在的相同记录
+                    exists = ScoreRecord.objects.filter(
                         student=student,
                         date=record_date,
-                        type=record_data.get('type', 'bonus'),
-                        item=record_data.get('item', ''),
-                        score=record_data.get('score', 0)
-                    )
-                    imported_records += 1
+                        type=record_type,
+                        item=item,
+                        score=score
+                    ).exists()
+                    if not exists:
+                        ScoreRecord.objects.create(
+                            student=student,
+                            date=record_date,
+                            type=record_type,
+                            item=item,
+                            score=score
+                        )
+                        imported_records += 1
 
             for key, value in configs_data.items():
                 Config.set_value(key, value)

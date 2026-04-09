@@ -670,6 +670,7 @@
             <div class="card" id="dailyDetailsCard" style="margin-top: 24px;">
                 <div class="card-header">
                     <div class="card-title">当日明细</div>
+                    <button class="btn btn-sm" style="background: var(--danger); color: white;" onclick="deleteAllRecordsByDate()">删除当日数据</button>
                 </div>
                 <div class="card-body" style="padding: 0;">
                     <table class="student-table">
@@ -1113,7 +1114,7 @@
                 });
             });
 
-            document.getElementById('chartDate').addEventListener('change', loadChartData);
+            document.getElementById('chartDate').addEventListener('change', loadDashboardData);
 
             // Upload area
             const uploadArea = document.getElementById('uploadArea');
@@ -1378,6 +1379,23 @@
             }
         }
 
+        window.deleteAllRecordsByDate = async function() {
+            const date = document.getElementById('chartDate').value;
+            if (!confirm(`确定要删除 ${date} 的所有学生数据吗？此操作不可撤销！`)) return;
+
+            try {
+                const res = await apiDelete(`/records/delete-by-date/?date=${date}`);
+                if (res.success) {
+                    showToast(res.message || '删除成功');
+                    loadDashboardData();
+                } else {
+                    showToast(res.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('删除失败: ' + error.message, 'error');
+            }
+        };
+
         window.deleteSingleRecord = async function(recordId) {
             if (!confirm('确定要删除该条记录吗？')) return;
 
@@ -1447,8 +1465,8 @@
                     // 点击柱子
                     studentId = records[params.dataIndex]?.id;
                 } else if (params.componentType === 'xAxis') {
-                    // 点击X轴标签
-                    studentId = records[params.value]?.id;
+                    // 点击X轴标签（params.value 是标签文本）
+                    studentId = records.find(r => r.name === params.value)?.id;
                 }
                 if (studentId) {
                     showStudentHistory(studentId);
@@ -1784,7 +1802,8 @@
                 const parts = line.trim().split(/\s+/);
                 if (parts.length >= 2) {
                     const score = parseInt(parts.pop());
-                    if (!isNaN(score)) record.bonus.push({ item: parts.join(' '), score });
+                    const item = parts.join(' ');
+                    if (!isNaN(score) && score > 0 && item) record.bonus.push({ item, score });
                 }
             });
 
@@ -1792,7 +1811,8 @@
                 const parts = line.trim().split(/\s+/);
                 if (parts.length >= 2) {
                     const score = parseInt(parts.pop());
-                    if (!isNaN(score)) record.penalty.push({ item: parts.join(' '), score });
+                    const item = parts.join(' ');
+                    if (!isNaN(score) && score > 0 && item) record.penalty.push({ item, score });
                 }
             });
 
