@@ -14,6 +14,7 @@ urlpatterns = [
     path('records/<int:record_id>/', views.get_record_detail, name='get_record_detail'),
     path('records/<int:record_id>/update/', views.update_record, name='update_record'),
     path('records/<int:record_id>/delete/', views.delete_record, name='delete_record'),
+    path('records/delete-by-date/', views.delete_records_by_date, name='delete_records_by_date'),
 
     # 学生管理
     path('students/', views.list_students, name='list_students'),

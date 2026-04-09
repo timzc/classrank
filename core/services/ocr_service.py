@@ -55,12 +55,15 @@ class OCRService:
         """创建带重试机制的requests session"""
         session = requests.Session()
 
-        # 配置重试策略
+        # 配置重试策略：仅对特定HTTP状态码重试，不对超时/连接错误重试
         retry_strategy = Retry(
             total=3,  # 最多重试3次
             backoff_factor=1,  # 重试间隔: 1s, 2s, 4s
             status_forcelist=[429, 500, 502, 503, 504],  # 这些状态码触发重试
             allowed_methods=["POST"],  # 允许POST请求重试
+            raise_on_status=False,  # 不抛异常，由业务代码处理状态码
+            connect=0,  # 连接错误不重试
+            read=0,  # 读取超时不重试
         )
 
         adapter = HTTPAdapter(max_retries=retry_strategy)
@@ -181,7 +184,16 @@ class OCRService:
                     'error': '请求过于频繁，请稍后重试'
                 }
 
-            response.raise_for_status()
+            if not response.ok:
+                try:
+                    error_body = response.json()
+                    detail = error_body.get('error', {}).get('message', '') or error_body.get('message', '') or response.text
+                except Exception:
+                    detail = response.text
+                return {
+                    'success': False,
+                    'error': f'API返回错误 (HTTP {response.status_code}): {detail}'
+                }
 
             result = response.json()
             content = result['choices'][0]['message']['content']
@@ -196,17 +208,23 @@ class OCRService:
         except requests.exceptions.SSLError as e:
             return {
                 'success': False,
-                'error': 'SSL连接错误，请检查网络环境或稍后重试。如问题持续，请尝试使用手动输入功能。'
+                'error': f'SSL连接错误: {e}'
             }
         except requests.exceptions.ConnectionError as e:
+            # 超时异常可能被包装为 ConnectionError(MaxRetryError(ReadTimeoutError))
+            if 'timed out' in str(e).lower() or 'timeout' in str(e).lower():
+                return {
+                    'success': False,
+                    'error': f'请求超时（服务器60秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
+                }
             return {
                 'success': False,
-                'error': '网络连接失败，请检查网络后重试'
+                'error': f'网络连接失败: {e}'
             }
         except requests.exceptions.Timeout as e:
             return {
                 'success': False,
-                'error': '请求超时，请稍后重试'
+                'error': f'请求超时（服务器60秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
             }
         except requests.exceptions.RequestException as e:
             return {
