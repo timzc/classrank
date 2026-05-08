@@ -6,7 +6,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Sum, Max, Q, Case, When, Value, IntegerField
 
-from .models import Student, ScoreRecord, Config
+from .models import Student, ScoreRecord, Config, AcademicYear
 from .services.ocr_service import OCRService
 
 
@@ -59,6 +59,7 @@ def save_records(request):
         data = json.loads(request.body)
         record_date = data.get('date', date.today().isoformat())
         students_data = data.get('students', [])
+        year_id = data.get('academic_year_id')
 
         if not students_data:
             return json_response({'success': False, 'error': '没有学生数据'}, 400)
@@ -66,6 +67,16 @@ def save_records(request):
         # 解析日期
         if isinstance(record_date, str):
             record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+
+        # 确定学年
+        academic_year = None
+        if year_id and year_id != 'all':
+            try:
+                academic_year = AcademicYear.objects.get(pk=int(year_id))
+            except AcademicYear.DoesNotExist:
+                pass
+        if academic_year is None:
+            academic_year = AcademicYear.objects.filter(is_active=True).first()
 
         saved_count = 0
 
@@ -85,6 +96,7 @@ def save_records(request):
                 for bonus in student_data.get('bonus', []):
                     ScoreRecord.objects.create(
                         student=student,
+                        academic_year=academic_year,
                         date=record_date,
                         type='bonus',
                         item=bonus.get('item', ''),
@@ -95,6 +107,7 @@ def save_records(request):
                 for penalty in student_data.get('penalty', []):
                     ScoreRecord.objects.create(
                         student=student,
+                        academic_year=academic_year,
                         date=record_date,
                         type='penalty',
                         item=penalty.get('item', ''),
@@ -115,19 +128,38 @@ def save_records(request):
         return json_response({'success': False, 'error': str(e)}, 500)
 
 
+def _parse_year_id(request):
+    """从请求中解析 academic_year_id，返回 int 或 None（None 表示全部）"""
+    raw = request.GET.get('academic_year_id') or request.POST.get('academic_year_id')
+    if raw and raw != 'all':
+        try:
+            return int(raw)
+        except ValueError:
+            pass
+    return None
+
+
+def _records_qs(year_id=None):
+    """返回按学年过滤的 ScoreRecord queryset"""
+    qs = ScoreRecord.objects.select_related('student')
+    if year_id is not None:
+        qs = qs.filter(academic_year_id=year_id)
+    return qs
+
+
 @require_http_methods(["GET"])
 def get_records(request):
     """获取积分数据"""
     try:
         view_type = request.GET.get('type', 'daily')
         record_date = request.GET.get('date', date.today().isoformat())
+        year_id = _parse_year_id(request)
 
         if isinstance(record_date, str):
             record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
 
         if view_type == 'daily':
-            # 当日分数 - 按学生分组计算净得分
-            records = ScoreRecord.objects.filter(date=record_date).select_related('student')
+            records = _records_qs(year_id).filter(date=record_date)
             student_scores = {}
             for r in records:
                 if r.student.id not in student_scores:
@@ -138,19 +170,21 @@ def get_records(request):
                         'is_focused': r.student.is_focused
                     }
                 student_scores[r.student.id]['score'] += r.signed_score
-
             data = list(student_scores.values())
         else:
-            # 累积总分 - 显示所有有积分记录的学生
-            students = Student.objects.filter(records__isnull=False).distinct()
-            data = [{
-                'id': s.id,
-                'name': s.name,
-                'score': s.total_score,
-                'is_focused': s.is_focused
-            } for s in students]
+            records = _records_qs(year_id)
+            student_scores = {}
+            for r in records:
+                if r.student.id not in student_scores:
+                    student_scores[r.student.id] = {
+                        'id': r.student.id,
+                        'name': r.student.name,
+                        'score': 0,
+                        'is_focused': r.student.is_focused
+                    }
+                student_scores[r.student.id]['score'] += r.signed_score
+            data = list(student_scores.values())
 
-        # 按分数排序
         data.sort(key=lambda x: x['score'], reverse=True)
 
         return json_response({
@@ -194,10 +228,11 @@ def get_daily_details(request):
     """获取当日明细列表"""
     try:
         record_date = request.GET.get('date', date.today().isoformat())
+        year_id = _parse_year_id(request)
         if isinstance(record_date, str):
             record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
 
-        records = ScoreRecord.objects.filter(date=record_date).select_related('student')
+        records = _records_qs(year_id).filter(date=record_date)
 
         # 按学生分组
         student_records = {}
@@ -360,7 +395,8 @@ def get_student_history(request, student_id):
     """获取学生历史得分记录"""
     try:
         student = Student.objects.get(pk=student_id)
-        records = ScoreRecord.objects.filter(student=student).order_by('-date', '-type')
+        year_id = _parse_year_id(request)
+        records = _records_qs(year_id).filter(student=student).order_by('-date', '-type')
 
         # 按日期分组
         date_groups = {}
@@ -413,27 +449,19 @@ def get_student_history(request, student_id):
 def list_students(request):
     """获取学生列表"""
     try:
-        students = Student.objects.annotate(
-            bonus_total=Sum(
-                Case(
-                    When(records__type='bonus', then='records__score'),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            ),
-            penalty_total=Sum(
-                Case(
-                    When(records__type='penalty', then='records__score'),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            ),
-        )
+        year_id = _parse_year_id(request)
 
+        # 计算每位学生在指定学年的累计积分
+        records = _records_qs(year_id)
+        score_map = {}
+        for r in records:
+            score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
+
+        students = Student.objects.all()
         data = [{
             'id': s.id,
             'name': s.name,
-            'total_score': (s.bonus_total or 0) - (s.penalty_total or 0),
+            'total_score': score_map.get(s.id, 0),
             'is_focused': s.is_focused
         } for s in students]
 
@@ -497,14 +525,30 @@ def update_student(request, student_id):
             # 处理累积分数调整
             if 'total_score' in data:
                 desired_total = int(data['total_score'])
-                current_total = student.total_score
+                # 按当前选中学年计算已有积分
+                year_id = data.get('academic_year_id')
+                if year_id and year_id != 'all':
+                    try:
+                        adjust_year = AcademicYear.objects.get(pk=int(year_id))
+                    except AcademicYear.DoesNotExist:
+                        adjust_year = AcademicYear.objects.filter(is_active=True).first()
+                else:
+                    adjust_year = AcademicYear.objects.filter(is_active=True).first()
+
+                if adjust_year:
+                    current_total = sum(
+                        r.signed_score for r in student.records.filter(academic_year=adjust_year)
+                    )
+                else:
+                    current_total = student.total_score
+
                 diff = desired_total - current_total
 
                 if diff != 0:
                     today = date.today()
-                    # 创建一条调整记录
                     ScoreRecord.objects.create(
                         student=student,
+                        academic_year=adjust_year,
                         date=today,
                         type='bonus' if diff > 0 else 'penalty',
                         item='手动调整',
@@ -609,6 +653,7 @@ def get_stats(request):
     """获取统计数据"""
     try:
         record_date = request.GET.get('date', date.today().isoformat())
+        year_id = _parse_year_id(request)
         if isinstance(record_date, str):
             record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
 
@@ -616,7 +661,7 @@ def get_stats(request):
         focused_students = Student.objects.filter(is_focused=True).count()
 
         # 当日分数统计
-        daily_records = ScoreRecord.objects.filter(date=record_date)
+        daily_records = _records_qs(year_id).filter(date=record_date)
         student_scores = {}
         for r in daily_records:
             if r.student_id not in student_scores:
@@ -627,27 +672,13 @@ def get_stats(request):
         highest = max(scores) if scores else 0
         lowest = min(scores) if scores else 0
 
-        # 累积最高分
-        cumulative_qs = Student.objects.filter(records__isnull=False).distinct().annotate(
-            bonus_total=Sum(
-                Case(
-                    When(records__type='bonus', then='records__score'),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            ),
-            penalty_total=Sum(
-                Case(
-                    When(records__type='penalty', then='records__score'),
-                    default=Value(0),
-                    output_field=IntegerField(),
-                )
-            ),
-        )
-        cumulative_max = 0
-        for s in cumulative_qs:
-            score = (s.bonus_total or 0) - (s.penalty_total or 0)
-            cumulative_max = max(cumulative_max, score)
+        # 累积最高分（按学年过滤）
+        cumulative_scores = {}
+        for r in _records_qs(year_id):
+            if r.student_id not in cumulative_scores:
+                cumulative_scores[r.student_id] = 0
+            cumulative_scores[r.student_id] += r.signed_score
+        cumulative_max = max(cumulative_scores.values()) if cumulative_scores else 0
 
         return json_response({
             'success': True,
@@ -786,5 +817,97 @@ def clear_all_data(request):
             'message': '所有数据已清空'
         })
 
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+# ==================== 学年管理 ====================
+
+@require_http_methods(["GET"])
+def list_academic_years(request):
+    """获取所有学年"""
+    try:
+        years = AcademicYear.objects.all()
+        data = [{
+            'id': y.id,
+            'name': y.name,
+            'order': y.order,
+            'is_active': y.is_active,
+        } for y in years]
+        return json_response({'success': True, 'data': data})
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def add_academic_year(request):
+    """新增学年"""
+    try:
+        data = json.loads(request.body)
+        name = data.get('name', '').strip()
+        order = int(data.get('order', 0))
+        if not name:
+            return json_response({'success': False, 'error': '请输入学年名称'}, 400)
+
+        year = AcademicYear.objects.create(name=name, order=order)
+        return json_response({
+            'success': True,
+            'data': {'id': year.id, 'name': year.name, 'order': year.order, 'is_active': year.is_active}
+        })
+    except Exception as e:
+        if 'unique' in str(e).lower():
+            return json_response({'success': False, 'error': '学年名称已存在'}, 400)
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def update_academic_year(request, year_id):
+    """更新学年（名称/排序）"""
+    try:
+        year = AcademicYear.objects.get(pk=year_id)
+        data = json.loads(request.body)
+        if 'name' in data:
+            year.name = data['name'].strip()
+        if 'order' in data:
+            year.order = int(data['order'])
+        year.save()
+        return json_response({
+            'success': True,
+            'data': {'id': year.id, 'name': year.name, 'order': year.order, 'is_active': year.is_active}
+        })
+    except AcademicYear.DoesNotExist:
+        return json_response({'success': False, 'error': '学年不存在'}, 404)
+    except Exception as e:
+        if 'unique' in str(e).lower():
+            return json_response({'success': False, 'error': '学年名称已存在'}, 400)
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_academic_year(request, year_id):
+    """删除学年（关联积分记录的学年字段置空）"""
+    try:
+        year = AcademicYear.objects.get(pk=year_id)
+        year.delete()
+        return json_response({'success': True, 'message': '删除成功'})
+    except AcademicYear.DoesNotExist:
+        return json_response({'success': False, 'error': '学年不存在'}, 404)
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@csrf_exempt
+@require_http_methods(["PUT"])
+def activate_academic_year(request, year_id):
+    """将某学年设为当前学年"""
+    try:
+        year = AcademicYear.objects.get(pk=year_id)
+        year.activate()
+        return json_response({'success': True, 'message': f'已将 {year.name} 设为当前学年'})
+    except AcademicYear.DoesNotExist:
+        return json_response({'success': False, 'error': '学年不存在'}, 404)
     except Exception as e:
         return json_response({'success': False, 'error': str(e)}, 500)
