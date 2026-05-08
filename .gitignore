@@ -40,4 +40,4 @@ staticfiles/
 !*/migrations/__init__.py
 
 # Static files collected
-staticfiles/
+staticfiles/CLAUDE.md
