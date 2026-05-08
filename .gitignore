@@ -41,3 +41,4 @@ staticfiles/
 
 # Static files collected
 staticfiles/CLAUDE.md
+.claude/
