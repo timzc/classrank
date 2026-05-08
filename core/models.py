@@ -1,6 +1,28 @@
 from django.db import models
 
 
+class AcademicYear(models.Model):
+    """学年模型"""
+    name = models.CharField('学年名称', max_length=50, unique=True)
+    order = models.PositiveIntegerField('排序', default=0)
+    is_active = models.BooleanField('是否当前学年', default=False)
+    created_at = models.DateTimeField('创建时间', auto_now_add=True)
+
+    class Meta:
+        verbose_name = '学年'
+        verbose_name_plural = '学年'
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return self.name
+
+    def activate(self):
+        """设为当前学年，同时取消其他学年的激活状态"""
+        AcademicYear.objects.exclude(pk=self.pk).update(is_active=False)
+        self.is_active = True
+        self.save(update_fields=['is_active'])
+
+
 class Student(models.Model):
     """学生模型"""
     name = models.CharField('学生姓名', max_length=50, unique=True)
@@ -40,6 +62,14 @@ class ScoreRecord(models.Model):
         on_delete=models.CASCADE,
         related_name='records',
         verbose_name='学生'
+    )
+    academic_year = models.ForeignKey(
+        AcademicYear,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='score_records',
+        verbose_name='学年'
     )
     date = models.DateField('考评日期')
     type = models.CharField('类型', max_length=10, choices=TYPE_CHOICES)

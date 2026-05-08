@@ -35,4 +35,11 @@ urlpatterns = [
     path('data/export/', views.export_data, name='export_data'),
     path('data/import/', views.import_data, name='import_data'),
     path('data/clear/', views.clear_all_data, name='clear_all_data'),
+
+    # 学年管理
+    path('academic-years/', views.list_academic_years, name='list_academic_years'),
+    path('academic-years/add/', views.add_academic_year, name='add_academic_year'),
+    path('academic-years/<int:year_id>/update/', views.update_academic_year, name='update_academic_year'),
+    path('academic-years/<int:year_id>/delete/', views.delete_academic_year, name='delete_academic_year'),
+    path('academic-years/<int:year_id>/activate/', views.activate_academic_year, name='activate_academic_year'),
 ]

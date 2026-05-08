@@ -646,6 +646,12 @@
                             <button class="toggle-btn active" data-view="daily">当日分数</button>
                             <button class="toggle-btn" data-view="total">累积总分</button>
                         </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <label style="font-size:0.875rem;color:var(--text-secondary);white-space:nowrap;">学年</label>
+                            <select id="academicYearSelect" class="date-input" style="min-width:110px;cursor:pointer;">
+                                <option value="all">全部学年</option>
+                            </select>
+                        </div>
                         <div class="date-picker">
                             <input type="date" class="date-input" id="chartDate">
                         </div>
@@ -855,6 +861,21 @@
                         </div>
                     </div>
                     <div class="settings-section">
+                        <h3 class="settings-section-title">学年管理</h3>
+                        <div id="academicYearList" style="margin-bottom:16px;"></div>
+                        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+                            <div>
+                                <label class="form-label" style="margin-bottom:4px;">学年名称</label>
+                                <input type="text" class="form-input" id="newYearName" placeholder="如：二年级上" style="width:160px;">
+                            </div>
+                            <div>
+                                <label class="form-label" style="margin-bottom:4px;">排序</label>
+                                <input type="number" class="form-input" id="newYearOrder" placeholder="数字越小越靠前" style="width:140px;" min="0">
+                            </div>
+                            <button class="btn btn-primary" onclick="addAcademicYear()">添加学年</button>
+                        </div>
+                    </div>
+                    <div class="settings-section">
                         <h3 class="settings-section-title">数据管理</h3>
                         <div style="display: flex; gap: 12px; flex-wrap: wrap;">
                             <button class="btn btn-secondary" id="exportBtn">导出数据</button>
@@ -869,6 +890,30 @@
             </div>
         </section>
     </main>
+
+    <!-- Edit Academic Year Modal -->
+    <div class="modal-overlay" id="editYearModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">编辑学年</h3>
+                <button class="modal-close" onclick="closeModal('editYearModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">学年名称</label>
+                    <input type="text" class="form-input" id="editYearName" placeholder="如：一年级下">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">排序</label>
+                    <input type="number" class="form-input" id="editYearOrder" placeholder="数字越小越靠前" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('editYearModal')">取消</button>
+                <button class="btn btn-primary" id="confirmEditYear">保存</button>
+            </div>
+        </div>
+    </div>
 
     <!-- Add Student Modal -->
     <div class="modal-overlay" id="addStudentModal">
@@ -1060,15 +1105,18 @@
 
         // ==================== State ====================
         let currentView = 'daily';
-        let imageFiles = [];  // 存储图片文件和状态
-        let parsedResults = [];  // 所有解析结果
+        let currentYearId = 'all';   // 当前选中学年 ID（'all' 或数字）
+        let academicYears = [];       // 学年列表缓存
+        let imageFiles = [];
+        let parsedResults = [];
         let studentsData = [];
         let chart = null;
 
         // ==================== Initialize ====================
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             initChart();
             setDefaultDates();
+            await loadAcademicYears();
             loadDashboardData();
             loadStudentsData();
             loadSettings();
@@ -1080,6 +1128,153 @@
             document.getElementById('chartDate').value = today;
             document.getElementById('uploadDate').value = today;
         }
+
+        // ==================== 学年管理 ====================
+        async function loadAcademicYears() {
+            try {
+                const res = await apiGet('/academic-years/');
+                if (!res.success) return;
+                academicYears = res.data;
+
+                const select = document.getElementById('academicYearSelect');
+                select.innerHTML = '<option value="all">全部学年</option>';
+                academicYears.forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y.id;
+                    opt.textContent = y.name + (y.is_active ? ' (当前)' : '');
+                    select.appendChild(opt);
+                });
+
+                // 默认选中当前学年
+                const active = academicYears.find(y => y.is_active);
+                if (active) {
+                    currentYearId = active.id;
+                    select.value = active.id;
+                }
+
+                renderAcademicYearList();
+            } catch (e) {
+                console.error('Failed to load academic years:', e);
+            }
+        }
+
+        function renderAcademicYearList() {
+            const container = document.getElementById('academicYearList');
+            if (!container) return;
+            if (academicYears.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-secondary);font-size:0.875rem;">暂无学年，请在下方添加。</p>';
+                return;
+            }
+            container.innerHTML = `
+                <table class="student-table" style="margin-top:0;">
+                    <thead>
+                        <tr>
+                            <th>学年名称</th>
+                            <th>排序</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${academicYears.map(y => `
+                            <tr>
+                                <td style="font-weight:${y.is_active ? '600' : '400'}">${y.name}</td>
+                                <td>${y.order}</td>
+                                <td>
+                                    ${y.is_active
+                                        ? '<span style="color:var(--success);font-weight:600;">当前学年</span>'
+                                        : `<button class="btn btn-text btn-sm" onclick="setActiveYear(${y.id})">设为当前</button>`
+                                    }
+                                </td>
+                                <td>
+                                    <button class="btn btn-text btn-sm" onclick="openEditYear(${y.id})">编辑</button>
+                                    <button class="btn btn-text btn-sm" style="color:var(--danger);" onclick="deleteYear(${y.id})">删除</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        window.addAcademicYear = async function() {
+            const name = document.getElementById('newYearName').value.trim();
+            const order = parseInt(document.getElementById('newYearOrder').value) || 0;
+            if (!name) { showToast('请输入学年名称', 'error'); return; }
+            const res = await apiPost('/academic-years/add/', { name, order });
+            if (res.success) {
+                showToast('学年添加成功');
+                document.getElementById('newYearName').value = '';
+                document.getElementById('newYearOrder').value = '';
+                await loadAcademicYears();
+            } else {
+                showToast(res.error || '添加失败', 'error');
+            }
+        };
+
+        window.setActiveYear = async function(id) {
+            const res = await apiPut(`/academic-years/${id}/activate/`, {});
+            if (res.success) {
+                showToast(res.message || '设置成功');
+                await loadAcademicYears();
+                loadDashboardData();
+                loadStudentsData();
+            } else {
+                showToast(res.error || '操作失败', 'error');
+            }
+        };
+
+        window.openEditYear = function(id) {
+            const year = academicYears.find(y => y.id === id);
+            if (!year) return;
+            window.currentEditYearId = id;
+            document.getElementById('editYearName').value = year.name;
+            document.getElementById('editYearOrder').value = year.order;
+            openModal('editYearModal');
+        };
+
+        async function saveYearEdit() {
+            const id = window.currentEditYearId;
+            const name = document.getElementById('editYearName').value.trim();
+            const order = parseInt(document.getElementById('editYearOrder').value) || 0;
+            if (!name) { showToast('请输入学年名称', 'error'); return; }
+            const res = await apiPut(`/academic-years/${id}/update/`, { name, order });
+            if (res.success) {
+                showToast('保存成功');
+                closeModal('editYearModal');
+                await loadAcademicYears();
+                loadDashboardData();
+                loadStudentsData();
+            } else {
+                showToast(res.error || '保存失败', 'error');
+            }
+        }
+
+        window.deleteYear = async function(id) {
+            const year = academicYears.find(y => y.id === id);
+            const hasRecords = year ? await (async () => {
+                const r = await apiGet(`/records/?type=total&academic_year_id=${id}`);
+                return r.success && r.data.records.length > 0;
+            })() : false;
+
+            const msg = hasRecords
+                ? `学年"${year.name}"下有积分记录，删除后这些记录将不属于任何学年。确定要删除吗？`
+                : `确定要删除学年"${year?.name}"吗？`;
+
+            if (!confirm(msg)) return;
+            const res = await apiDelete(`/academic-years/${id}/delete/`);
+            if (res.success) {
+                showToast('删除成功');
+                if (currentYearId == id) {
+                    currentYearId = 'all';
+                }
+                await loadAcademicYears();
+                loadDashboardData();
+                loadStudentsData();
+            } else {
+                showToast(res.error || '删除失败', 'error');
+            }
+        };
 
         function initEventListeners() {
             // Navigation tabs
@@ -1115,6 +1310,16 @@
             });
 
             document.getElementById('chartDate').addEventListener('change', loadDashboardData);
+
+            // 学年选择器
+            document.getElementById('academicYearSelect').addEventListener('change', function() {
+                currentYearId = this.value === 'all' ? 'all' : parseInt(this.value);
+                loadDashboardData();
+                loadStudentsData();
+            });
+
+            // 编辑学年确认
+            document.getElementById('confirmEditYear').addEventListener('click', saveYearEdit);
 
             // Upload area
             const uploadArea = document.getElementById('uploadArea');
@@ -1211,12 +1416,16 @@
             window.addEventListener('resize', () => chart.resize());
         }
 
+        function yearParam() {
+            return currentYearId !== 'all' ? `&academic_year_id=${currentYearId}` : '';
+        }
+
         async function loadDashboardData() {
             try {
                 const date = document.getElementById('chartDate').value;
                 const [statsRes, chartRes] = await Promise.all([
-                    apiGet(`/stats/?date=${date}`),
-                    apiGet(`/records/?type=${currentView}&date=${date}`)
+                    apiGet(`/stats/?date=${date}${yearParam()}`),
+                    apiGet(`/records/?type=${currentView}&date=${date}${yearParam()}`)
                 ]);
 
                 if (statsRes.success) {
@@ -1240,7 +1449,7 @@
         async function loadChartData() {
             try {
                 const date = document.getElementById('chartDate').value;
-                const res = await apiGet(`/records/?type=${currentView}&date=${date}`);
+                const res = await apiGet(`/records/?type=${currentView}&date=${date}${yearParam()}`);
                 updateChart(res);
 
                 // 加载当日明细（仅当日分数模式）
@@ -1256,7 +1465,7 @@
         async function loadDailyDetails() {
             try {
                 const date = document.getElementById('chartDate').value;
-                const res = await apiGet(`/records/daily-details/?date=${date}`);
+                const res = await apiGet(`/records/daily-details/?date=${date}${yearParam()}`);
 
                 const card = document.getElementById('dailyDetailsCard');
                 const tbody = document.getElementById('dailyDetailsTable');
@@ -1477,7 +1686,8 @@
         // ==================== 学生历史记录 ====================
         async function showStudentHistory(studentId) {
             try {
-                const res = await apiGet(`/students/${studentId}/history/`);
+                const yp = currentYearId !== 'all' ? `?academic_year_id=${currentYearId}` : '';
+                const res = await apiGet(`/students/${studentId}/history/${yp}`);
                 if (!res.success) {
                     showToast('获取学生历史记录失败', 'error');
                     return;
@@ -1487,8 +1697,11 @@
                 window.currentHistoryStudentId = studentId;
 
                 // 更新模态框标题
+                const yearLabel = currentYearId !== 'all'
+                    ? ` · ${academicYears.find(y => y.id === currentYearId)?.name || ''}`
+                    : ' · 全部学年';
                 document.getElementById('studentHistoryTitle').textContent =
-                    `${data.student_name} 的得分历史 (总分: ${data.total_score >= 0 ? '+' : ''}${data.total_score})`;
+                    `${data.student_name} 的得分历史 (总分: ${data.total_score >= 0 ? '+' : ''}${data.total_score}${yearLabel})`;
 
                 const tbody = document.getElementById('studentHistoryTable');
 
@@ -1837,7 +2050,11 @@
             showLoading('正在保存数据...');
             try {
                 const date = document.getElementById('uploadDate').value;
-                const res = await apiPost('/records/save/', { date, students: parsedResults });
+                const res = await apiPost('/records/save/', {
+                    date,
+                    students: parsedResults,
+                    academic_year_id: currentYearId !== 'all' ? currentYearId : null
+                });
 
                 hideLoading();
                 if (res.success) {
@@ -1855,7 +2072,8 @@
         // ==================== Students Management ====================
         async function loadStudentsData() {
             try {
-                const res = await apiGet('/students/');
+                const yp = currentYearId !== 'all' ? `?academic_year_id=${currentYearId}` : '';
+                const res = await apiGet(`/students/${yp}`);
                 if (res.success) {
                     studentsData = res.data;
                     renderStudentsTable();
@@ -1955,7 +2173,10 @@
             try {
                 const totalScore = document.getElementById('editStudentScore').value;
                 const payload = { name, is_focused: isFocused };
-                if (totalScore !== '') payload.total_score = parseInt(totalScore);
+                if (totalScore !== '') {
+                    payload.total_score = parseInt(totalScore);
+                    payload.academic_year_id = currentYearId !== 'all' ? currentYearId : null;
+                }
                 const res = await apiPut(`/students/${id}/`, payload);
                 if (res.success) {
                     showToast('保存成功');
