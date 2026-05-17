@@ -1,0 +1,95 @@
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ChevronRight, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { recordsApi } from '@/lib/api/records';
+import { queryKeys } from '@/lib/query-keys';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useCurrentYear } from '@/components/layout/academic-year-switcher';
+
+export function DailyDetails({ dates }: { dates: string[] }) {
+  return (
+    <div className="divide-y">
+      {dates.map((d) => <DailyRow key={d} date={d} />)}
+      {dates.length === 0 && (
+        <div className="py-6 text-center text-xs text-muted-foreground">暂无记录</div>
+      )}
+    </div>
+  );
+}
+
+function DailyRow({ date }: { date: string }) {
+  const [open, setOpen] = useState(false);
+  const { yearId } = useCurrentYear();
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.dailyDetails(date, yearId),
+    queryFn: () => recordsApi.dailyDetails(date, yearId),
+    enabled: open,
+  });
+  const remove = useMutation({
+    mutationFn: () => recordsApi.removeByDate(date),
+    onSuccess: () => {
+      toast.success('已删除该日全部记录');
+      qc.invalidateQueries({ queryKey: ['records'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const students = data?.records ?? [];
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between py-3 px-1 text-left hover:bg-black/[0.03] rounded-md"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium">
+          <ChevronRight className={cn('h-4 w-4 transition-transform text-muted-foreground', open && 'rotate-90')} />
+          {date}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => { e.stopPropagation(); if (confirm(`确定删除 ${date} 全部记录？`)) remove.mutate(); }}
+          aria-label="删除整日"
+        >
+          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
+        </Button>
+      </button>
+      {open && (
+        <div className="pl-7 pb-3 space-y-2">
+          {isLoading && <div className="text-xs text-muted-foreground">加载中...</div>}
+          {students.length === 0 && !isLoading && (
+            <div className="text-xs text-muted-foreground">该日无记录</div>
+          )}
+          {students.map((s) => (
+            <div key={s.student_id} className="space-y-0.5">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-medium">{s.student_name}</span>
+                <span className={cn('tabular-nums', s.net_score >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]')}>
+                  {s.net_score >= 0 ? '+' : ''}{s.net_score}
+                </span>
+              </div>
+              {s.bonus.map((b) => (
+                <div key={`b-${b.id}`} className="flex items-center justify-between pl-2 text-[11px] text-muted-foreground">
+                  <span>+ {b.item}</span>
+                  <span className="text-[hsl(var(--success))] tabular-nums">+{b.score}</span>
+                </div>
+              ))}
+              {s.penalty.map((p) => (
+                <div key={`p-${p.id}`} className="flex items-center justify-between pl-2 text-[11px] text-muted-foreground">
+                  <span>- {p.item}</span>
+                  <span className="text-[hsl(var(--destructive))] tabular-nums">-{p.score}</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
