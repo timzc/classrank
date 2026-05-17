@@ -26,6 +26,7 @@ export function ResultTable({
   const remove = (id: string) => onChange(rows.filter((r) => r.id !== id));
 
   return (
+    <>
     <Table>
       <TableHeader>
         <TableRow>
@@ -63,7 +64,7 @@ export function ResultTable({
                 type="number"
                 min={1}
                 value={r.score}
-                onChange={(e) => update(r.id, { score: Number(e.target.value) || 0 })}
+                onChange={(e) => update(r.id, { score: Math.max(1, Number(e.target.value) || 1) })}
               />
             </TableCell>
             <TableCell>
@@ -74,9 +75,10 @@ export function ResultTable({
           </TableRow>
         ))}
       </TableBody>
-      <datalist id="known-students">
-        {knownStudents.map((n) => <option key={n} value={n} />)}
-      </datalist>
     </Table>
+    <datalist id="known-students">
+      {knownStudents.map((n) => <option key={n} value={n} />)}
+    </datalist>
+    </>
   );
 }

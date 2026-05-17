@@ -20,7 +20,16 @@ export function Dropzone({ onFile, disabled }: { onFile: (f: File) => void; disa
         const f = e.clipboardData.files?.[0];
         if (f) onFile(f);
       }}
-      tabIndex={0}
+      role="button"
+      aria-label="上传考评图片"
+      tabIndex={disabled ? -1 : 0}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          ref.current?.click();
+        }
+      }}
       className={cn(
         'flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-surface px-6 py-12 text-center transition-colors',
         dragOver ? 'border-foreground bg-black/[0.03]' : 'border-border hover:bg-black/[0.02]',
