@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { academicYearsApi } from '@/lib/api/academic-years';
 import { queryKeys } from '@/lib/query-keys';
+
+const YEAR_SCOPED_KEYS = [['stats'], ['students'], ['records']] as const;
+
+function invalidateYearScoped(qc: QueryClient) {
+  for (const key of YEAR_SCOPED_KEYS) {
+    qc.invalidateQueries({ queryKey: key });
+  }
+}
 
 type YearId = number | 'all';
 
@@ -62,13 +70,13 @@ export function AcademicYearSwitcher() {
       <DropdownMenuContent align="end" className="min-w-[160px]">
         <DropdownMenuLabel>切换学年</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { setYearId('all'); qc.invalidateQueries(); }}>
+        <DropdownMenuItem onClick={() => { setYearId('all'); invalidateYearScoped(qc); }}>
           全部学年
         </DropdownMenuItem>
         {years.map((y) => (
           <DropdownMenuItem
             key={y.id}
-            onClick={() => { setYearId(y.id); qc.invalidateQueries(); }}
+            onClick={() => { setYearId(y.id); invalidateYearScoped(qc); }}
           >
             {y.name}{y.is_active ? ' · 当前' : ''}
           </DropdownMenuItem>

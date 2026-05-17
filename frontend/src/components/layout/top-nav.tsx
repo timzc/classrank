@@ -19,7 +19,6 @@ export function TopNav() {
         </div>
         <nav
           className="flex items-center gap-1 rounded-full bg-black/5 p-1"
-          role="tablist"
           aria-label="主导航"
         >
           {TABS.map((t) => (
