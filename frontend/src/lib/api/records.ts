@@ -13,6 +13,39 @@ export interface RecordItem {
   score: number;
 }
 
+export interface DailyDetailItem {
+  id: number;
+  item: string;
+  score: number;
+}
+
+export interface DailyDetailStudent {
+  student_id: number;
+  student_name: string;
+  is_focused: boolean;
+  bonus: DailyDetailItem[];
+  penalty: DailyDetailItem[];
+  net_score: number;
+}
+
+export interface DailyDetailsPayload {
+  date: string;
+  records: DailyDetailStudent[];
+}
+
+export interface RankingRow {
+  id: number;
+  name: string;
+  score: number;
+  is_focused: boolean;
+}
+
+export interface RecordsListPayload {
+  type: 'daily' | 'cumulative';
+  date: string;
+  records: RankingRow[];
+}
+
 export interface SaveRecordsPayload {
   date: string;
   academic_year_id?: number | 'all';
@@ -31,8 +64,8 @@ const qs = (params: Record<string, string | number | undefined>) => {
 };
 
 export const recordsApi = {
-  list: (params: { start?: string; end?: string; year_id?: number | 'all' } = {}) =>
-    request<{ success: boolean; data: RecordItem[] }>(
+  list: (params: { type?: 'daily' | 'cumulative'; date?: string; year_id?: number | 'all' } = {}) =>
+    request<{ success: boolean; data: RecordsListPayload }>(
       `${ENDPOINTS.records}${qs(params)}`,
     ).then((r) => r.data),
   save: (payload: SaveRecordsPayload) =>
@@ -41,21 +74,21 @@ export const recordsApi = {
       body: JSON.stringify(payload),
     }),
   dailyDetails: (date: string, yearId?: number | 'all') =>
-    request<{ success: boolean; data: RecordItem[] }>(
+    request<{ success: boolean; data: DailyDetailsPayload }>(
       `${ENDPOINTS.recordsDailyDetails}${qs({ date, year_id: yearId })}`,
     ).then((r) => r.data),
   get: (id: number) =>
     request<{ success: boolean; data: RecordItem }>(ENDPOINTS.recordDetail(id)).then((r) => r.data),
-  update: (id: number, payload: Partial<Omit<RecordItem, 'id' | 'student_name'>>) =>
+  update: (id: number, payload: Partial<Omit<RecordItem, 'id' | 'student_name'>> & { student_name?: string }) =>
     request<{ success: boolean }>(ENDPOINTS.recordUpdate(id), {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(ENDPOINTS.recordDelete(id), { method: 'DELETE' }),
-  removeByDate: (date: string, yearId?: number | 'all') =>
-    request<{ success: boolean }>(ENDPOINTS.recordsDeleteByDate, {
+  // Backend reads `date` from query string, NOT body.
+  removeByDate: (date: string) =>
+    request<{ success: boolean }>(`${ENDPOINTS.recordsDeleteByDate}${qs({ date })}`, {
       method: 'DELETE',
-      body: JSON.stringify({ date, academic_year_id: yearId }),
     }),
 };

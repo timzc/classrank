@@ -21,6 +21,7 @@ export const ENDPOINTS = {
   configSet: (key: string) => `/api/config/${key}/set/`,
   // 统计
   stats: '/api/stats/',
+  statsRange: '/api/stats/range/',
   // 数据
   dataExport: '/api/data/export/',
   dataImport: '/api/data/import/',

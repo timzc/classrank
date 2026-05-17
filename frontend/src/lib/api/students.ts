@@ -14,12 +14,12 @@ export const studentsApi = {
       `${ENDPOINTS.students}${yearId !== undefined ? `?year_id=${yearId}` : ''}`,
     ).then((r) => r.data),
   add: (name: string) =>
-    request<{ success: boolean; data: Student }>(ENDPOINTS.studentAdd, {
+    request<{ success: boolean; data: Pick<Student, 'id' | 'name' | 'is_focused'> }>(ENDPOINTS.studentAdd, {
       method: 'POST',
       body: JSON.stringify({ name }),
     }),
   update: (id: number, payload: Partial<Pick<Student, 'name' | 'is_focused'>>) =>
-    request<{ success: boolean; data: Student }>(ENDPOINTS.studentUpdate(id), {
+    request<{ success: boolean; data: Pick<Student, 'id' | 'name' | 'is_focused'> }>(ENDPOINTS.studentUpdate(id), {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
