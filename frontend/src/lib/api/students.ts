@@ -11,7 +11,7 @@ export interface Student {
 export const studentsApi = {
   list: (yearId?: number | 'all') =>
     request<{ success: boolean; data: Student[] }>(
-      `${ENDPOINTS.students}${yearId !== undefined ? `?year_id=${yearId}` : ''}`,
+      `${ENDPOINTS.students}${yearId !== undefined ? `?academic_year_id=${yearId}` : ''}`,
     ).then((r) => r.data),
   add: (name: string) =>
     request<{ success: boolean; data: Pick<Student, 'id' | 'name' | 'is_focused'> }>(ENDPOINTS.studentAdd, {
@@ -27,10 +27,10 @@ export const studentsApi = {
     request<{ success: boolean }>(ENDPOINTS.studentDelete(id), { method: 'DELETE' }),
   history: (id: number, yearId?: number | 'all') =>
     request<{ success: boolean; data: unknown }>(
-      `${ENDPOINTS.studentHistory(id)}${yearId !== undefined ? `?year_id=${yearId}` : ''}`,
+      `${ENDPOINTS.studentHistory(id)}${yearId !== undefined ? `?academic_year_id=${yearId}` : ''}`,
     ).then((r) => r.data),
   focused: (yearId?: number | 'all') =>
     request<{ success: boolean; data: Student[] }>(
-      `${ENDPOINTS.studentsFocused}${yearId !== undefined ? `?year_id=${yearId}` : ''}`,
+      `${ENDPOINTS.studentsFocused}${yearId !== undefined ? `?academic_year_id=${yearId}` : ''}`,
     ).then((r) => r.data),
 };

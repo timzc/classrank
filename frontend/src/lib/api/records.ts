@@ -56,7 +56,7 @@ export interface SaveRecordsPayload {
   }>;
 }
 
-const qs = (params: Record<string, string | number | undefined>) => {
+const qs = (params: Record<string, string | number | 'all' | undefined>) => {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) if (v !== undefined) sp.set(k, String(v));
   const s = sp.toString();
@@ -66,7 +66,7 @@ const qs = (params: Record<string, string | number | undefined>) => {
 export const recordsApi = {
   list: (params: { type?: 'daily' | 'cumulative'; date?: string; year_id?: number | 'all' } = {}) =>
     request<{ success: boolean; data: RecordsListPayload }>(
-      `${ENDPOINTS.records}${qs(params)}`,
+      `${ENDPOINTS.records}${qs({ type: params.type, date: params.date, academic_year_id: params.year_id })}`,
     ).then((r) => r.data),
   save: (payload: SaveRecordsPayload) =>
     request<{ success: boolean }>(ENDPOINTS.recordsSave, {
@@ -75,7 +75,7 @@ export const recordsApi = {
     }),
   dailyDetails: (date: string, yearId?: number | 'all') =>
     request<{ success: boolean; data: DailyDetailsPayload }>(
-      `${ENDPOINTS.recordsDailyDetails}${qs({ date, year_id: yearId })}`,
+      `${ENDPOINTS.recordsDailyDetails}${qs({ date, academic_year_id: yearId })}`,
     ).then((r) => r.data),
   get: (id: number) =>
     request<{ success: boolean; data: RecordItem }>(ENDPOINTS.recordDetail(id)).then((r) => r.data),

@@ -17,7 +17,7 @@ export interface SingleDayStatsPayload {
   cumulative_highest: number;
 }
 
-function buildQs(params: Record<string, string | number | undefined>): string {
+function buildQs(params: Record<string, string | number | 'all' | undefined>): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined) sp.set(k, String(v));
@@ -29,10 +29,10 @@ function buildQs(params: Record<string, string | number | undefined>): string {
 export const statsApi = {
   range: (params: { start?: string; end?: string; year_id?: number | 'all' } = {}) =>
     request<{ success: boolean; data: StatsRangePayload }>(
-      `${ENDPOINTS.statsRange}${buildQs(params)}`,
+      `${ENDPOINTS.statsRange}${buildQs({ start: params.start, end: params.end, academic_year_id: params.year_id })}`,
     ).then((r) => r.data),
   single: (params: { date?: string; year_id?: number | 'all' } = {}) =>
     request<{ success: boolean; data: SingleDayStatsPayload }>(
-      `${ENDPOINTS.stats}${buildQs(params)}`,
+      `${ENDPOINTS.stats}${buildQs({ date: params.date, academic_year_id: params.year_id })}`,
     ).then((r) => r.data),
 };
