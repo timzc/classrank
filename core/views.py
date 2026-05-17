@@ -695,6 +695,98 @@ def get_stats(request):
         return json_response({'success': False, 'error': str(e)}, 500)
 
 
+@require_http_methods(["GET"])
+def get_stats_range(request):
+    """获取日期范围内的聚合统计：5 张卡片 + 每日序列 + 排行榜。"""
+    try:
+        from datetime import timedelta as _td  # local import OK; keeps top of file untouched
+
+        start_str = request.GET.get('start')
+        end_str = request.GET.get('end')
+        today = date.today()
+        end_date = datetime.strptime(end_str, '%Y-%m-%d').date() if end_str else today
+        start_date = datetime.strptime(start_str, '%Y-%m-%d').date() if start_str else end_date
+        if start_date > end_date:
+            start_date, end_date = end_date, start_date
+
+        year_id = _parse_year_id(request)
+
+        records = list(
+            _records_qs(year_id).filter(date__gte=start_date, date__lte=end_date)
+        )
+
+        # Totals
+        bonus_total = sum(r.score for r in records if r.type == 'bonus')
+        penalty_total = sum(r.score for r in records if r.type == 'penalty')
+
+        # Participating students within range
+        participating = len({r.student_id for r in records})
+
+        focused = Student.objects.filter(is_focused=True).count()
+
+        # Daily aggregation (every date in [start, end], even if zero)
+        per_day = {}
+        d = start_date
+        while d <= end_date:
+            per_day[d.isoformat()] = {
+                'date': d.isoformat(),
+                'bonus': 0,
+                'penalty': 0,
+                'net': 0,
+            }
+            d += _td(days=1)
+        for r in records:
+            key = r.date.isoformat()
+            entry = per_day.get(key)
+            if entry is None:
+                # Defensive — shouldn't happen given the range filter, but skip silently.
+                continue
+            if r.type == 'bonus':
+                entry['bonus'] += r.score
+                entry['net'] += r.score
+            else:
+                entry['penalty'] += r.score
+                entry['net'] -= r.score
+        daily = sorted(per_day.values(), key=lambda x: x['date'])
+        running = 0
+        for d_entry in daily:
+            running += d_entry['net']
+            d_entry['cumulative'] = running
+
+        # Ranking by net score within range
+        score_map = {}
+        name_map = {}
+        for r in records:
+            score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
+            name_map[r.student_id] = r.student.name
+        ranking = sorted(
+            (
+                {'id': sid, 'name': name_map[sid], 'score': score}
+                for sid, score in score_map.items()
+            ),
+            key=lambda x: x['score'],
+            reverse=True,
+        )
+
+        return json_response({
+            'success': True,
+            'data': {
+                'totals': {
+                    'bonus': bonus_total,
+                    'penalty': penalty_total,
+                    'net': bonus_total - penalty_total,
+                },
+                'participating_students': participating,
+                'focused_students': focused,
+                'daily': daily,
+                'ranking': ranking,
+            },
+        })
+
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
 # ==================== 数据管理 ====================
 
 @require_http_methods(["GET"])
