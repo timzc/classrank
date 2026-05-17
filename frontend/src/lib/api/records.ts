@@ -51,8 +51,8 @@ export interface SaveRecordsPayload {
   academic_year_id?: number | 'all';
   students: Array<{
     name: string;
-    bonus_items?: Array<{ item: string; score: number }>;
-    penalty_items?: Array<{ item: string; score: number }>;
+    bonus?: Array<{ item: string; score: number }>;
+    penalty?: Array<{ item: string; score: number }>;
   }>;
 }
 

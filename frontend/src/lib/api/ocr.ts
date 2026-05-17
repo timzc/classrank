@@ -8,12 +8,14 @@ export interface ParsedItem {
 
 export interface ParsedStudent {
   name: string;
-  bonus_items: ParsedItem[];
-  penalty_items: ParsedItem[];
+  bonus: ParsedItem[];
+  penalty: ParsedItem[];
+  net_score?: number;
 }
 
 export interface ParsedResult {
   date?: string;
+  class_info?: string;
   students: ParsedStudent[];
 }
 
