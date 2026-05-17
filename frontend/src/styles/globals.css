@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Apple 风格白底黑强调 */
+    --background: 0 0% 100%;
+    --foreground: 220 6% 12%;        /* #1D1D1F */
+    --surface: 220 6% 96%;           /* #F5F5F7 */
+    --card: 0 0% 100%;
+    --card-foreground: 220 6% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 6% 12%;
+    --primary: 0 0% 0%;              /* 纯黑强调 */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 6% 96%;
+    --secondary-foreground: 220 6% 12%;
+    --muted: 220 6% 96%;
+    --muted-foreground: 220 4% 44%;  /* #6E6E73 */
+    --accent: 220 6% 92%;
+    --accent-foreground: 220 6% 12%;
+    --destructive: 4 100% 60%;       /* #FF3B30 */
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 71% 49%;          /* #34C759 */
+    --success-foreground: 0 0% 100%;
+    --border: 220 6% 90%;
+    --input: 220 6% 90%;
+    --ring: 0 0% 0%;
+    --radius: 0.625rem;              /* 10px */
+  }
+  * {
+    @apply border-border;
+  }
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+}
