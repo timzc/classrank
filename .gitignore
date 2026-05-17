@@ -44,3 +44,7 @@ staticfiles/CLAUDE.md
 .claude/
 # Don't let Python's lib/ rule swallow frontend code
 !frontend/src/lib/
+
+# Vite frontend build artifacts
+frontend/node_modules/
+static/app/
