@@ -1,9 +1,9 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
+from django.db import transaction, models
 from django.db.models import Sum, Max, Q, Case, When, Value, IntegerField
 
 from .models import Student, ScoreRecord, Config, AcademicYear
@@ -341,9 +341,10 @@ def delete_records_by_date(request):
             return json_response({'success': False, 'error': '请指定日期'}, 400)
 
         record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+        year_id = _parse_year_id(request)
 
         with transaction.atomic():
-            records = ScoreRecord.objects.filter(date=record_date)
+            records = _records_qs(year_id).filter(date=record_date)
             deleted_count = records.count()
             # 找出受影响的学生
             student_ids = list(records.values_list('student_id', flat=True).distinct())
@@ -699,17 +700,25 @@ def get_stats(request):
 def get_stats_range(request):
     """获取日期范围内的聚合统计：5 张卡片 + 每日序列 + 排行榜。"""
     try:
-        from datetime import timedelta as _td  # local import OK; keeps top of file untouched
-
         start_str = request.GET.get('start')
         end_str = request.GET.get('end')
+        year_id = _parse_year_id(request)
         today = date.today()
-        end_date = datetime.strptime(end_str, '%Y-%m-%d').date() if end_str else today
-        start_date = datetime.strptime(start_str, '%Y-%m-%d').date() if start_str else end_date
+
+        # Determine effective range: explicit dates > earliest record (for the chosen scope) > today.
+        if end_str:
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        else:
+            end_date = today
+
+        if start_str:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+        else:
+            earliest = _records_qs(year_id).aggregate(models.Min('date'))['date__min']
+            start_date = earliest or end_date
+
         if start_date > end_date:
             start_date, end_date = end_date, start_date
-
-        year_id = _parse_year_id(request)
 
         records = list(
             _records_qs(year_id).filter(date__gte=start_date, date__lte=end_date)
@@ -734,7 +743,7 @@ def get_stats_range(request):
                 'penalty': 0,
                 'net': 0,
             }
-            d += _td(days=1)
+            d += timedelta(days=1)
         for r in records:
             key = r.date.isoformat()
             entry = per_day.get(key)

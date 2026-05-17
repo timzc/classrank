@@ -29,7 +29,7 @@ function DailyRow({ date }: { date: string }) {
     enabled: open,
   });
   const remove = useMutation({
-    mutationFn: () => recordsApi.removeByDate(date),
+    mutationFn: () => recordsApi.removeByDate(date, yearId),
     onSuccess: () => {
       toast.success('已删除该日全部记录');
       qc.invalidateQueries({ queryKey: ['records'] });
@@ -42,24 +42,24 @@ function DailyRow({ date }: { date: string }) {
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between py-3 px-1 text-left hover:bg-black/[0.03] rounded-md"
-      >
-        <span className="flex items-center gap-2 text-sm font-medium">
+      <div className="flex items-center justify-between rounded-md hover:bg-black/[0.03]">
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="flex flex-1 items-center gap-2 py-3 px-1 text-left text-sm font-medium"
+        >
           <ChevronRight className={cn('h-4 w-4 transition-transform text-muted-foreground', open && 'rotate-90')} />
           {date}
-        </span>
+        </button>
         <Button
           variant="ghost"
           size="icon"
-          onClick={(e) => { e.stopPropagation(); if (confirm(`确定删除 ${date} 全部记录？`)) remove.mutate(); }}
+          onClick={() => { if (confirm(`确定删除 ${date} 全部记录？`)) remove.mutate(); }}
           aria-label="删除整日"
         >
           <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
-      </button>
+      </div>
       {open && (
         <div className="pl-7 pb-3 space-y-2">
           {isLoading && <div className="text-xs text-muted-foreground">加载中...</div>}

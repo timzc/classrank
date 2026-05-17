@@ -42,15 +42,21 @@ export default function DashboardPage() {
   });
 
   const dates = useMemo(() => {
-    if (!range?.from) return [] as string[];
-    const out: string[] = [];
-    const end = range.to ?? range.from;
-    const start = range.from;
-    for (let d = end; d >= start; d = subDays(d, 1)) {
-      out.push(format(d, 'yyyy-MM-dd'));
+    if (range?.from) {
+      const out: string[] = [];
+      const end = range.to ?? range.from;
+      const start = range.from;
+      for (let d = end; d >= start; d = subDays(d, 1)) {
+        out.push(format(d, 'yyyy-MM-dd'));
+      }
+      return out;
     }
-    return out;
-  }, [range]);
+    // Preset = "全部": derive dates from the data response (newest first)
+    if (data?.daily?.length) {
+      return [...data.daily.map((d) => d.date)].reverse();
+    }
+    return [] as string[];
+  }, [range, data]);
 
   return (
     <div className="space-y-6">

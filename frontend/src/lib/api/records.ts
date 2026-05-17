@@ -86,9 +86,10 @@ export const recordsApi = {
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(ENDPOINTS.recordDelete(id), { method: 'DELETE' }),
-  // Backend reads `date` from query string, NOT body.
-  removeByDate: (date: string) =>
-    request<{ success: boolean }>(`${ENDPOINTS.recordsDeleteByDate}${qs({ date })}`, {
-      method: 'DELETE',
-    }),
+  // Backend reads `date` and optional `academic_year_id` from query string, NOT body.
+  removeByDate: (date: string, yearId?: number | 'all') =>
+    request<{ success: boolean }>(
+      `${ENDPOINTS.recordsDeleteByDate}${qs({ date, academic_year_id: yearId })}`,
+      { method: 'DELETE' },
+    ),
 };
