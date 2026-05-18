@@ -115,7 +115,7 @@ export default function StudentsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pendingDelete && remove.mutate(pendingDelete.id)}>删除</AlertDialogAction>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); if (pendingDelete) remove.mutate(pendingDelete.id); }}>删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

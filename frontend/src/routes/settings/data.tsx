@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/common/loading-button';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { dataApi } from '@/lib/api/data';
@@ -57,9 +58,9 @@ export default function SettingsDataPage() {
               e.target.value = '';
             }}
           />
-          <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={importMut.isPending}>
-            {importMut.isPending ? '导入中...' : '选择 JSON 文件'}
-          </Button>
+          <LoadingButton variant="outline" loading={importMut.isPending} onClick={() => fileRef.current?.click()}>
+            选择 JSON 文件
+          </LoadingButton>
           <div className="text-xs text-muted-foreground">导入会按学生姓名 upsert，原有同学不会被覆盖。</div>
         </CardContent>
       </Card>
@@ -82,7 +83,7 @@ export default function SettingsDataPage() {
           <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} placeholder="DELETE" />
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction disabled={confirmText !== 'DELETE' || clear.isPending} onClick={() => clear.mutate()}>
+            <AlertDialogAction disabled={confirmText !== 'DELETE' || clear.isPending} onClick={(e) => { e.preventDefault(); clear.mutate(); }}>
               确认清空
             </AlertDialogAction>
           </AlertDialogFooter>

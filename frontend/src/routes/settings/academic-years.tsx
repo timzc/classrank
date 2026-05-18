@@ -99,7 +99,7 @@ export default function SettingsAcademicYearsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction disabled={remove.isPending} onClick={() => pendingDelete && remove.mutate(pendingDelete.id)}>删除</AlertDialogAction>
+            <AlertDialogAction disabled={remove.isPending} onClick={(e) => { e.preventDefault(); if (pendingDelete) remove.mutate(pendingDelete.id); }}>删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
