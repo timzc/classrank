@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { LoadingButton } from '@/components/common/loading-button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { academicYearsApi, type AcademicYear } from '@/lib/api/academic-years';
@@ -21,17 +22,18 @@ export default function SettingsAcademicYearsPage() {
   });
   const add = useMutation({
     mutationFn: () => academicYearsApi.add(name.trim(), years.length),
-    onSuccess: () => { setName(''); toast.success('已添加学年'); qc.invalidateQueries({ queryKey: ['academic-years'] }); },
+    onSuccess: () => { setName(''); toast.success('已添加学年'); qc.invalidateQueries({ queryKey: queryKeys.academicYears() }); },
     onError: (e: Error) => toast.error(e.message),
   });
+  // 仅刷新学年列表：当前学年由顶部切换器（localStorage）决定，不依赖服务端 is_active
   const activate = useMutation({
     mutationFn: (id: number) => academicYearsApi.activate(id),
-    onSuccess: () => { toast.success('已切换当前学年'); qc.invalidateQueries({ queryKey: ['academic-years'] }); },
+    onSuccess: () => { toast.success('已切换当前学年'); qc.invalidateQueries({ queryKey: queryKeys.academicYears() }); },
     onError: (e: Error) => toast.error(e.message),
   });
   const remove = useMutation({
     mutationFn: (id: number) => academicYearsApi.remove(id),
-    onSuccess: () => { toast.success('已删除'); qc.invalidateQueries({ queryKey: ['academic-years'] }); setPendingDelete(null); },
+    onSuccess: () => { toast.success('已删除'); qc.invalidateQueries({ queryKey: queryKeys.academicYears() }); setPendingDelete(null); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -39,9 +41,11 @@ export default function SettingsAcademicYearsPage() {
     <div className="space-y-4">
       <Card>
         <CardHeader><CardTitle>新增学年</CardTitle></CardHeader>
-        <CardContent className="flex gap-2 max-w-md">
-          <Input placeholder="如 2025-2026 上学期" value={name} onChange={(e) => setName(e.target.value)} />
-          <Button onClick={() => add.mutate()} disabled={!name.trim() || add.isPending}><Plus className="h-3.5 w-3.5" /> 添加</Button>
+        <CardContent>
+          <form onSubmit={(e) => { e.preventDefault(); add.mutate(); }} className="flex gap-2 max-w-md">
+            <Input placeholder="如 2025-2026 上学期" value={name} onChange={(e) => setName(e.target.value)} />
+            <LoadingButton type="submit" loading={add.isPending} disabled={!name.trim()}><Plus className="h-3.5 w-3.5" /> 添加</LoadingButton>
+          </form>
         </CardContent>
       </Card>
 
@@ -68,9 +72,9 @@ export default function SettingsAcademicYearsPage() {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right space-x-1">
-                    <Button size="sm" variant="outline" disabled={y.is_active || activate.isPending} onClick={() => activate.mutate(y.id)}>
+                    <LoadingButton size="sm" variant="outline" loading={activate.isPending && activate.variables === y.id} disabled={y.is_active} onClick={() => activate.mutate(y.id)}>
                       设为当前
-                    </Button>
+                    </LoadingButton>
                     <Button size="icon" variant="ghost" onClick={() => setPendingDelete(y)} aria-label="删除">
                       <Trash2 className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" />
                     </Button>
@@ -95,7 +99,7 @@ export default function SettingsAcademicYearsPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={() => pendingDelete && remove.mutate(pendingDelete.id)}>删除</AlertDialogAction>
+            <AlertDialogAction disabled={remove.isPending} onClick={() => pendingDelete && remove.mutate(pendingDelete.id)}>删除</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
