@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     emptyOutDir: true,
     manifest: 'manifest.json',
     rollupOptions: {
-      input: path.resolve(__dirname, 'index.html'),
+      input: path.resolve(__dirname, 'src/main.tsx'),
     },
   },
   server: {
