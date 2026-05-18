@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # 学生考评积分管理系统启动脚本
 
@@ -27,14 +28,16 @@ if [ ! -f ".env" ]; then
     echo "⚠️  请编辑 .env 文件，填写你的 SiliconFlow API Key"
 fi
 
-# 前端构建（DEBUG=False 时需要）
-if [ -d "frontend" ]; then
+# 前端构建（生产模式下需要；开发可设 SKIP_FRONTEND_BUILD=1 跳过，直接用 `npm run dev`）
+if [ -d "frontend" ] && [ "${SKIP_FRONTEND_BUILD:-0}" != "1" ]; then
     if ! command -v npm &> /dev/null; then
         echo "❌ 未找到 npm，请先安装 Node.js (≥18)"
         exit 1
     fi
-    echo "📥 安装前端依赖..."
-    (cd frontend && npm ci)
+    if [ ! -d "frontend/node_modules" ]; then
+        echo "📥 安装前端依赖..."
+        (cd frontend && npm ci)
+    fi
     echo "🏗️  构建前端产物..."
     (cd frontend && npm run build)
 fi
