@@ -4,11 +4,10 @@ import { format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import { StatCard } from '@/components/dashboard/stat-card';
-import { TrendChart } from '@/components/dashboard/trend-chart';
+import { StudentScoreChart } from '@/components/dashboard/student-score-chart';
 import { RankingTable } from '@/components/dashboard/ranking-table';
 import { DailyDetails } from '@/components/dashboard/daily-details';
 import { statsApi } from '@/lib/api/stats';
@@ -94,21 +93,18 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle>趋势</CardTitle>
+          <CardTitle>学生分数</CardTitle>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-black" /> 重点关注
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#D1D1D6]" /> 其他
+            </span>
+          </div>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="daily">
-            <TabsList>
-              <TabsTrigger value="daily">每日净分</TabsTrigger>
-              <TabsTrigger value="cumulative">累计</TabsTrigger>
-            </TabsList>
-            <TabsContent value="daily">
-              {data ? <TrendChart data={data.daily} mode="daily" /> : <Skeleton className="h-[320px]" />}
-            </TabsContent>
-            <TabsContent value="cumulative">
-              {data ? <TrendChart data={data.daily} mode="cumulative" /> : <Skeleton className="h-[320px]" />}
-            </TabsContent>
-          </Tabs>
+          {data ? <StudentScoreChart data={data.ranking} /> : <Skeleton className="h-[320px]" />}
         </CardContent>
       </Card>
 

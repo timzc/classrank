@@ -765,12 +765,19 @@ def get_stats_range(request):
         # Ranking by net score within range
         score_map = {}
         name_map = {}
+        focused_map = {}
         for r in records:
             score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
             name_map[r.student_id] = r.student.name
+            focused_map[r.student_id] = r.student.is_focused
         ranking = sorted(
             (
-                {'id': sid, 'name': name_map[sid], 'score': score}
+                {
+                    'id': sid,
+                    'name': name_map[sid],
+                    'score': score,
+                    'is_focused': focused_map[sid],
+                }
                 for sid, score in score_map.items()
             ),
             key=lambda x: x['score'],
