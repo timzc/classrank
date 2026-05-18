@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -29,10 +29,21 @@ export default function SettingsApiPage() {
     resolver: zodResolver(schema),
     defaultValues: { api_key: '', model: 'Qwen/Qwen2.5-VL-32B-Instruct' },
   });
+  const initialized = useRef(false);
   useEffect(() => {
-    if (keyQ.data) form.setValue('api_key', keyQ.data.value);
-    if (modelQ.data) form.setValue('model', modelQ.data.value);
+    if (initialized.current) return;
+    if (!keyQ.data || !modelQ.data) return;
+    form.reset({
+      api_key: keyQ.data.value,
+      model: modelQ.data.value || 'Qwen/Qwen2.5-VL-32B-Instruct',
+    });
+    initialized.current = true;
   }, [keyQ.data, modelQ.data, form]);
+
+  useEffect(() => {
+    const err = keyQ.error || modelQ.error;
+    if (err instanceof Error) toast.error(err.message);
+  }, [keyQ.error, modelQ.error]);
 
   const save = useMutation({
     mutationFn: async (v: FormValues) => {
