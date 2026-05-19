@@ -42,7 +42,7 @@
 │  ┌──────────────────────────────────────────────────────┐  │
 │  │                    Django 后端服务                     │  │
 │  ├─────────────────┬──────────────────┬─────────────────┤  │
-│  │  SiliconFlow API│   数据处理层     │   REST API      │  │
+│  │  OCR API（默认SF）│   数据处理层     │   REST API      │  │
 │  └─────────────────┴──────────────────┴─────────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌──────────────────────────────────────────────────────┐  │
@@ -57,7 +57,7 @@
 #### 3.2.1 模块一：考评图片解析
 
 **功能描述**
-用户上传老师发布的考评图片，系统调用SiliconFlow大模型API进行OCR解析，提取学生姓名、加分项、减分项等信息。
+用户上传老师发布的考评图片，系统调用兼容 OpenAI Chat Completions 协议的视觉大模型 API（默认 SiliconFlow，可在系统设置中替换 URL/Key/模型）进行 OCR 解析，提取学生姓名、加分项、减分项等信息。
 
 **业务流程**
 
@@ -83,7 +83,7 @@
 
 **处理规则**
 1. 图片上传后，先进行格式和大小校验（最大10MB）
-2. 调用SiliconFlow API进行OCR识别
+2. 调用 OCR API（默认 SiliconFlow）进行视觉识别
 3. 使用预设Prompt模板引导模型输出结构化JSON
 4. 解析结果展示给用户确认，支持手动修正
 5. 确认后存入数据库，关联日期
@@ -264,8 +264,9 @@
 **预设配置项**:
 | key | 默认值 | 说明 |
 |-----|--------|------|
-| siliconflow_api_key | "" | SiliconFlow API密钥 |
-| siliconflow_model | "Qwen/Qwen2-VL-72B-Instruct" | 使用的模型名称 |
+| ocr_api_url | "https://api.siliconflow.cn/v1/chat/completions" | OCR API 端点（兼容 OpenAI Chat Completions） |
+| ocr_api_key | "" | OCR API 密钥 |
+| ocr_model | "Qwen/Qwen2.5-VL-32B-Instruct" | 使用的视觉模型名 |
 
 ---
 
@@ -401,7 +402,7 @@ GET /api/records/?type=total
 | 后端框架 | Django 5.x | 成熟稳定，内置Admin，适合快速开发 |
 | 数据库 | SQLite | 轻量级，无需额外安装，适合本地应用 |
 | 前端 | HTML + CSS + JavaScript + ECharts | 简单直接，适合小规模应用 |
-| OCR服务 | SiliconFlow API | 支持多模态模型，性价比高 |
+| OCR服务 | OCR API（默认 SiliconFlow，可配置任意兼容 OpenAI Chat Completions 的视觉模型） | 支持多模态模型，性价比高，端点可换 |
 | 图表库 | ECharts 5.x | 功能强大，中文文档完善 |
 
 ### 6.2 项目结构
@@ -439,10 +440,10 @@ classrank/
 
 ### 6.3 配置管理
 
-API Key配置方式：
-1. 环境变量 (推荐): `SILICONFLOW_API_KEY`
-2. 配置文件: `config/.env`
-3. 页面设置: 通过管理界面配置
+OCR 配置方式（DB > env > 默认值）：
+1. 页面设置：「系统设置 → API 配置」写入 DB（最高优先级）
+2. 环境变量：`OCR_API_URL` / `OCR_API_KEY` / `OCR_MODEL` / `OCR_TIMEOUT`（旧 `SILICONFLOW_*` 名仍作为回退）
+3. 代码默认值：见 `classrank/settings.py`
 
 ```python
 # settings.py 中的配置读取逻辑
@@ -451,8 +452,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SILICONFLOW_API_KEY = os.getenv('SILICONFLOW_API_KEY', '')
-SILICONFLOW_MODEL = os.getenv('SILICONFLOW_MODEL', 'Qwen/Qwen2-VL-72B-Instruct')
+OCR_API_URL = os.getenv('OCR_API_URL', os.getenv('SILICONFLOW_API_URL', 'https://api.siliconflow.cn/v1/chat/completions'))
+OCR_API_KEY = os.getenv('OCR_API_KEY', os.getenv('SILICONFLOW_API_KEY', ''))
+OCR_MODEL   = os.getenv('OCR_MODEL',   os.getenv('SILICONFLOW_MODEL',   'Qwen/Qwen2.5-VL-32B-Instruct'))
+OCR_TIMEOUT = int(os.getenv('OCR_TIMEOUT', os.getenv('SILICONFLOW_TIMEOUT', '180')))
 ```
 
 ---
@@ -512,28 +515,28 @@ SILICONFLOW_MODEL = os.getenv('SILICONFLOW_MODEL', 'Qwen/Qwen2-VL-72B-Instruct')
 
 ## 11. 附录
 
-### 11.1 SiliconFlow API 调用示例
+### 11.1 OCR API 调用示例（默认 SiliconFlow）
 
 ```python
 import base64
 import requests
 
-def parse_image_with_ocr(image_path, api_key):
-    """调用SiliconFlow API进行OCR解析"""
+def parse_image_with_ocr(image_path, api_key, url=None, model=None):
+    """调用 OCR API 进行视觉解析（兼容 OpenAI Chat Completions 协议）"""
 
     # 读取图片并转base64
     with open(image_path, 'rb') as f:
         image_base64 = base64.b64encode(f.read()).decode()
 
-    # 构建请求
-    url = "https://api.siliconflow.cn/v1/chat/completions"
+    # 构建请求（默认端点为 SiliconFlow，可替换为任意兼容端点）
+    url = url or "https://api.siliconflow.cn/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
 
     payload = {
-        "model": "Qwen/Qwen2-VL-72B-Instruct",
+        "model": model or "Qwen/Qwen2.5-VL-32B-Instruct",
         "messages": [
             {
                 "role": "user",

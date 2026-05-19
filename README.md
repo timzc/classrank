@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- 📷 **OCR 图片解析** — 上传图片，SiliconFlow Qwen VL 自动识别加减分项
+- 📷 **OCR 图片解析** — 上传图片，调用兼容 OpenAI Chat Completions 协议的视觉模型自动识别加减分项（默认 SiliconFlow Qwen VL，可在设置里改 URL/Key/模型）
 - 📊 **学生分数图表** — 按时间窗口（今日/本周/本月/全部/自定义）展示每个学生的总分；重点学生橙色高亮 + 呼吸动画
 - 📈 **趋势追踪** — 重点学生逐日累计积分多线折线图，看清增减节奏
 - 🏆 **统计卡** — 所选窗口内的最高分（含同学名）/ 最低分 / 平均分 / 参与人数 / 重点关注
@@ -54,13 +54,15 @@ python manage.py collectstatic --noinput
 python manage.py runserver
 ```
 
-### 配置 API Key
+### 配置 OCR API
 
 1. 访问 http://localhost:8000
 2. 顶栏「系统设置 → API 配置」
-3. 填写 SiliconFlow API Key 并保存
+3. 填写 API URL（默认 SiliconFlow）、API Key、模型并保存
 
-**获取 API Key**：<https://cloud.siliconflow.cn>
+> 也可在 `.env` 中通过 `OCR_API_URL` / `OCR_API_KEY` / `OCR_MODEL` 预设；DB 里有值时以 DB 为准。
+>
+> **获取 SiliconFlow API Key**：<https://cloud.siliconflow.cn>。换成其他兼容 OpenAI Chat Completions 协议的视觉模型端点（例如自建 vLLM、其他云厂商）同样可用。
 
 ## 支持的 OCR 模型
 
@@ -96,7 +98,7 @@ python manage.py runserver
 - 点行打开抽屉：含历史折线 + 全部记录
 
 ### ⚙️ 系统设置（`/settings/*`）
-- **API 配置** — SiliconFlow Key 与模型
+- **API 配置** — OCR API URL / Key / 模型
 - **学年管理** — 新增 / 设为当前学年（顶栏下拉随之刷新）/ 删除
 - **数据管理** — 导出 JSON / 导入 upsert / 清空全部数据（需输入 `DELETE` 确认）
 
@@ -143,7 +145,7 @@ classrank/
   - 图表：Recharts
   - 路由：React Router v6
   - 通知：sonner
-- **OCR**：SiliconFlow API（Qwen VL 系列）
+- **OCR**：任意兼容 OpenAI Chat Completions 协议的视觉模型端点（默认 SiliconFlow Qwen VL 系列）
 - **部署**：Docker 多阶段构建 / docker-compose
 
 ## 关键 API

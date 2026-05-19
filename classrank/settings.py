@@ -111,9 +111,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
-# SiliconFlow API Configuration
-SILICONFLOW_API_KEY = os.getenv('SILICONFLOW_API_KEY', '')
-SILICONFLOW_MODEL = os.getenv('SILICONFLOW_MODEL', 'Qwen/Qwen2.5-VL-32B-Instruct')
-SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
-# SiliconFlow OCR 请求超时（秒）。视觉模型推理可能较慢，默认 180。
-SILICONFLOW_TIMEOUT = int(os.getenv('SILICONFLOW_TIMEOUT', '180'))
+# OCR API Configuration (默认指向 SiliconFlow，可配置为任意兼容 OpenAI Chat Completions 协议的视觉模型端点)
+OCR_API_KEY = os.getenv('OCR_API_KEY', os.getenv('SILICONFLOW_API_KEY', ''))
+OCR_MODEL = os.getenv('OCR_MODEL', os.getenv('SILICONFLOW_MODEL', 'Qwen/Qwen2.5-VL-32B-Instruct'))
+OCR_API_URL = os.getenv('OCR_API_URL', os.getenv('SILICONFLOW_API_URL', 'https://api.siliconflow.cn/v1/chat/completions'))
+# OCR 请求超时（秒）。视觉模型推理可能较慢，默认 180。
+OCR_TIMEOUT = int(os.getenv('OCR_TIMEOUT', os.getenv('SILICONFLOW_TIMEOUT', '180')))

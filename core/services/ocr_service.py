@@ -1,5 +1,5 @@
 """
-SiliconFlow OCR Service
+OCR Service (兼容 OpenAI Chat Completions 协议的视觉模型，默认 SiliconFlow)
 """
 import base64
 import json
@@ -48,8 +48,8 @@ class OCRService:
     def __init__(self):
         self.api_key = self._get_api_key()
         self.model = self._get_model()
-        self.api_url = settings.SILICONFLOW_API_URL
-        self.timeout = settings.SILICONFLOW_TIMEOUT
+        self.api_url = self._get_api_url()
+        self.timeout = settings.OCR_TIMEOUT
         self.session = self._create_session()
 
     def _create_session(self):
@@ -75,17 +75,24 @@ class OCRService:
 
     def _get_api_key(self):
         """获取API Key，优先从数据库配置，其次从环境变量"""
-        db_key = Config.get_value('siliconflow_api_key')
+        db_key = Config.get_value('ocr_api_key')
         if db_key:
             return db_key
-        return settings.SILICONFLOW_API_KEY
+        return settings.OCR_API_KEY
 
     def _get_model(self):
         """获取模型名称，优先从数据库配置，其次从环境变量"""
-        db_model = Config.get_value('siliconflow_model')
+        db_model = Config.get_value('ocr_model')
         if db_model:
             return db_model
-        return settings.SILICONFLOW_MODEL
+        return settings.OCR_MODEL
+
+    def _get_api_url(self):
+        """获取 API URL，优先从数据库配置，其次从环境变量"""
+        db_url = Config.get_value('ocr_api_url')
+        if db_url:
+            return db_url
+        return settings.OCR_API_URL
 
     def parse_image(self, image_file):
         """
@@ -158,7 +165,7 @@ class OCRService:
             if not self.api_key:
                 return {
                     'success': False,
-                    'error': '未配置API Key，请在系统设置中配置SiliconFlow API Key'
+                    'error': '未配置 API Key，请在系统设置中配置 OCR API Key'
                 }
 
             response = self.session.post(
