@@ -79,16 +79,40 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {isLoading || !data ? (
-          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[78px]" />)
-        ) : (
-          <>
-            <StatCard label="净分" value={data.totals.net} tone={data.totals.net >= 0 ? 'positive' : 'negative'} />
-            <StatCard label="加分" value={data.totals.bonus} tone="positive" />
-            <StatCard label="扣分" value={data.totals.penalty} tone="negative" />
-            <StatCard label="参与人数" value={data.participating_students} />
-            <StatCard label="重点关注" value={data.focused_students} />
-          </>
-        )}
+          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-[92px]" />)
+        ) : (() => {
+          const ranked = [...data.ranking].sort((a, b) => b.score - a.score);
+          const top = ranked[0];
+          const bottom = ranked[ranked.length - 1];
+          const avg = data.participating_students > 0
+            ? Math.round(data.totals.net / data.participating_students)
+            : 0;
+          const fmt = (n: number) => `${n >= 0 ? '+' : ''}${n}`;
+          return (
+            <>
+              <StatCard
+                label="最高分"
+                value={top ? fmt(top.score) : '—'}
+                subtitle={top?.name}
+                tone={top && top.score >= 0 ? 'positive' : top ? 'negative' : undefined}
+              />
+              <StatCard
+                label="最低分"
+                value={bottom ? fmt(bottom.score) : '—'}
+                subtitle={bottom?.name}
+                tone={bottom && bottom.score >= 0 ? 'positive' : bottom ? 'negative' : undefined}
+              />
+              <StatCard
+                label="平均分"
+                value={fmt(avg)}
+                subtitle={`参与 ${data.participating_students} 人`}
+                tone={avg >= 0 ? 'positive' : 'negative'}
+              />
+              <StatCard label="参与人数" value={data.participating_students} />
+              <StatCard label="重点关注" value={data.focused_students} />
+            </>
+          );
+        })()}
       </div>
 
       <Card>
@@ -96,10 +120,10 @@ export default function DashboardPage() {
           <CardTitle>学生分数</CardTitle>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-black focused-bar" /> 重点关注
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FF9500] focused-bar" /> 重点关注
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#8E8E93]" /> 其他
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#0A84FF]" /> 其他
             </span>
           </div>
         </CardHeader>

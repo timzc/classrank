@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { cn } from '@/lib/utils';
 
 interface Row {
   id: number;
@@ -7,8 +8,33 @@ interface Row {
   is_focused: boolean;
 }
 
-const FOCUSED_COLOR = '#000';
-const NORMAL_COLOR = '#8E8E93';
+interface RankedRow extends Row {
+  rank: number;
+}
+
+const FOCUSED_COLOR = '#FF9500'; // Apple Orange
+const NORMAL_COLOR = '#0A84FF'; // Apple Blue
+
+function ChartTooltip({ active, payload }: { active?: boolean; payload?: Array<{ payload: RankedRow }> }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  return (
+    <div className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 text-xs shadow-sm">
+      <div className="font-medium text-foreground">
+        {row.name}
+        {row.is_focused && (
+          <span className="ml-1 rounded-sm bg-[#FF9500]/15 px-1 py-px text-[10px] text-[#FF9500]">重点</span>
+        )}
+      </div>
+      <div className="mt-1 flex items-center gap-3 tabular-nums text-muted-foreground">
+        <span>第 {row.rank} 名</span>
+        <span className={cn(row.score >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]')}>
+          {row.score >= 0 ? '+' : ''}{row.score} 分
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function ChartStrip({
   rows,
@@ -16,7 +42,7 @@ function ChartStrip({
   barSlot,
   domain,
 }: {
-  rows: Row[];
+  rows: RankedRow[];
   height: number;
   barSlot: number;
   domain: [number, number];
@@ -44,11 +70,7 @@ function ChartStrip({
               tickLine={false}
               domain={domain}
             />
-            <Tooltip
-              cursor={{ fill: 'rgba(0,0,0,0.04)' }}
-              contentStyle={{ borderRadius: 8, border: '1px solid rgba(0,0,0,0.08)', fontSize: 12 }}
-              formatter={(v: number) => [`${v >= 0 ? '+' : ''}${v}`, '总分']}
-            />
+            <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} content={<ChartTooltip />} />
             <ReferenceLine y={0} stroke="rgba(0,0,0,0.15)" />
             <Bar dataKey="score" radius={[4, 4, 0, 0]}>
               {rows.map((s) => (
@@ -70,8 +92,9 @@ export function StudentScoreChart({ data }: { data: Row[] }) {
   if (data.length === 0) {
     return <div className="py-12 text-center text-xs text-muted-foreground">暂无学生</div>;
   }
-  const focused = data.filter((d) => d.is_focused).sort((a, b) => b.score - a.score);
-  const all = [...data].sort((a, b) => b.score - a.score);
+  const sorted = [...data].sort((a, b) => b.score - a.score);
+  const all: RankedRow[] = sorted.map((s, i) => ({ ...s, rank: i + 1 }));
+  const focused = all.filter((d) => d.is_focused);
   const minScore = Math.min(0, ...all.map((d) => d.score));
   const maxScore = Math.max(0, ...all.map((d) => d.score));
   const domain: [number, number] = [minScore, maxScore];
