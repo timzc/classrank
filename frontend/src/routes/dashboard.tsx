@@ -4,10 +4,12 @@ import { format, startOfMonth, startOfWeek, subDays } from 'date-fns';
 import type { DateRange } from 'react-day-picker';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DateRangePicker } from '@/components/dashboard/date-range-picker';
 import { StatCard } from '@/components/dashboard/stat-card';
 import { StudentScoreChart } from '@/components/dashboard/student-score-chart';
+import { FocusedTrendChart } from '@/components/dashboard/focused-trend-chart';
 import { RankingTable } from '@/components/dashboard/ranking-table';
 import { DailyDetails } from '@/components/dashboard/daily-details';
 import { statsApi } from '@/lib/api/stats';
@@ -116,19 +118,32 @@ export default function DashboardPage() {
       </div>
 
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle>学生分数</CardTitle>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FF9500] focused-bar" /> 重点关注
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#0A84FF]" /> 其他
-            </span>
+        <CardHeader className="space-y-3">
+          <div className="flex items-center justify-between">
+            <CardTitle>学生分数</CardTitle>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FF9500] focused-bar" /> 重点关注
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#0A84FF]" /> 其他
+              </span>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {data ? <StudentScoreChart data={data.ranking} /> : <Skeleton className="h-[320px]" />}
+          <Tabs defaultValue="ranking">
+            <TabsList>
+              <TabsTrigger value="ranking">排名</TabsTrigger>
+              <TabsTrigger value="trend">趋势</TabsTrigger>
+            </TabsList>
+            <TabsContent value="ranking" className="pt-4">
+              {data ? <StudentScoreChart data={data.ranking} /> : <Skeleton className="h-[320px]" />}
+            </TabsContent>
+            <TabsContent value="trend" className="pt-4">
+              {data ? <FocusedTrendChart data={data.focused_trend} /> : <Skeleton className="h-[320px]" />}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 

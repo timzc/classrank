@@ -764,9 +764,11 @@ def get_stats_range(request):
 
         # Ranking covers all students (those without records in range score 0)
         score_map = {}
+        records_by_student = {}
         for r in records:
             score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
-        all_students = Student.objects.values('id', 'name', 'is_focused')
+            records_by_student.setdefault(r.student_id, []).append(r)
+        all_students = list(Student.objects.values('id', 'name', 'is_focused'))
         ranking = sorted(
             (
                 {
@@ -781,6 +783,33 @@ def get_stats_range(request):
             reverse=True,
         )
 
+        # Per-focused-student daily + cumulative trend (cumulative reset at range start)
+        focused_trend = []
+        for s in all_students:
+            if not s['is_focused']:
+                continue
+            per_day = {}
+            d = start_date
+            while d <= end_date:
+                per_day[d.isoformat()] = 0
+                d += timedelta(days=1)
+            for r in records_by_student.get(s['id'], []):
+                per_day[r.date.isoformat()] += r.signed_score
+            series = []
+            running = 0
+            for date_key in sorted(per_day.keys()):
+                running += per_day[date_key]
+                series.append({
+                    'date': date_key,
+                    'net': per_day[date_key],
+                    'cumulative': running,
+                })
+            focused_trend.append({
+                'id': s['id'],
+                'name': s['name'],
+                'daily': series,
+            })
+
         return json_response({
             'success': True,
             'data': {
@@ -793,6 +822,7 @@ def get_stats_range(request):
                 'focused_students': focused,
                 'daily': daily,
                 'ranking': ranking,
+                'focused_trend': focused_trend,
             },
         })
 

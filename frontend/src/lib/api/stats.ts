@@ -7,6 +7,11 @@ export interface StatsRangePayload {
   focused_students: number;
   daily: Array<{ date: string; bonus: number; penalty: number; net: number; cumulative: number }>;
   ranking: Array<{ id: number; name: string; score: number; is_focused: boolean }>;
+  focused_trend: Array<{
+    id: number;
+    name: string;
+    daily: Array<{ date: string; net: number; cumulative: number }>;
+  }>;
 }
 
 export interface SingleDayStatsPayload {
