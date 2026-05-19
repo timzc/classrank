@@ -96,10 +96,10 @@ export default function DashboardPage() {
           <CardTitle>学生分数</CardTitle>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-black" /> 重点关注
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-black focused-bar" /> 重点关注
             </span>
             <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#D1D1D6]" /> 其他
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#8E8E93]" /> 其他
             </span>
           </div>
         </CardHeader>
