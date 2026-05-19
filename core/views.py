@@ -762,23 +762,20 @@ def get_stats_range(request):
             running += d_entry['net']
             d_entry['cumulative'] = running
 
-        # Ranking by net score within range
+        # Ranking covers all students (those without records in range score 0)
         score_map = {}
-        name_map = {}
-        focused_map = {}
         for r in records:
             score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
-            name_map[r.student_id] = r.student.name
-            focused_map[r.student_id] = r.student.is_focused
+        all_students = Student.objects.values('id', 'name', 'is_focused')
         ranking = sorted(
             (
                 {
-                    'id': sid,
-                    'name': name_map[sid],
-                    'score': score,
-                    'is_focused': focused_map[sid],
+                    'id': s['id'],
+                    'name': s['name'],
+                    'score': score_map.get(s['id'], 0),
+                    'is_focused': s['is_focused'],
                 }
-                for sid, score in score_map.items()
+                for s in all_students
             ),
             key=lambda x: x['score'],
             reverse=True,
