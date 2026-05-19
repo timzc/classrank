@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Loader2, Plus, Save } from 'lucide-react';
+import { Loader2, Plus, Save, Sparkles, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,15 @@ import { recordsApi } from '@/lib/api/records';
 import { queryKeys } from '@/lib/query-keys';
 import { useCurrentYear } from '@/components/layout/academic-year-switcher';
 
-function flatten(parsed: ParsedResult): ResultRow[] {
+interface PendingImage {
+  id: string;
+  file: File;
+  url: string;
+}
+
+function flatten(parsed: ParsedResult, startIndex = 0): ResultRow[] {
   const out: ResultRow[] = [];
-  let i = 0;
+  let i = startIndex;
   for (const s of parsed.students ?? []) {
     for (const b of s.bonus ?? []) out.push({ id: `r${i++}`, studentName: s.name, type: 'bonus', item: b.item, score: b.score });
     for (const p of s.penalty ?? []) out.push({ id: `r${i++}`, studentName: s.name, type: 'penalty', item: p.item, score: p.score });
@@ -41,6 +47,16 @@ export default function UploadPage() {
   const qc = useQueryClient();
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
   const [rows, setRows] = useState<ResultRow[]>([]);
+  const [pending, setPending] = useState<PendingImage[]>([]);
+  const [progress, setProgress] = useState<{ current: number; total: number } | null>(null);
+  const seq = useRef(0);
+
+  useEffect(() => {
+    return () => {
+      pending.forEach((p) => URL.revokeObjectURL(p.url));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const { data: students = [] } = useQuery({
     queryKey: queryKeys.students(yearId),
@@ -48,14 +64,51 @@ export default function UploadPage() {
   });
   const knownNames = useMemo(() => students.map((s) => s.name), [students]);
 
+  const addFiles = (files: File[]) => {
+    const next = files.map((file) => ({
+      id: `img-${Date.now()}-${seq.current++}`,
+      file,
+      url: URL.createObjectURL(file),
+    }));
+    setPending((prev) => [...prev, ...next]);
+  };
+
+  const removePending = (id: string) => {
+    setPending((prev) => {
+      const target = prev.find((p) => p.id === id);
+      if (target) URL.revokeObjectURL(target.url);
+      return prev.filter((p) => p.id !== id);
+    });
+  };
+
+  const clearPending = () => {
+    pending.forEach((p) => URL.revokeObjectURL(p.url));
+    setPending([]);
+  };
+
   const parse = useMutation({
-    mutationFn: (f: File) => ocrApi.parse(f),
-    onSuccess: (data) => {
-      if (data.date) setDate(data.date);
-      setRows(flatten(data));
-      toast.success('解析完成');
+    mutationFn: async (files: File[]) => {
+      const aggregated: ResultRow[] = [];
+      let firstDate: string | undefined;
+      let idx = 0;
+      for (let i = 0; i < files.length; i++) {
+        setProgress({ current: i + 1, total: files.length });
+        const data = await ocrApi.parse(files[i]);
+        if (!firstDate && data.date) firstDate = data.date;
+        const next = flatten(data, idx);
+        idx += next.length;
+        aggregated.push(...next);
+      }
+      return { rows: aggregated, date: firstDate };
+    },
+    onSuccess: ({ rows: parsedRows, date: parsedDate }) => {
+      if (parsedDate) setDate(parsedDate);
+      setRows((prev) => [...prev, ...parsedRows]);
+      clearPending();
+      toast.success(`解析完成，共 ${parsedRows.length} 条`);
     },
     onError: (e: Error) => toast.error(e.message),
+    onSettled: () => setProgress(null),
   });
 
   const save = useMutation({
@@ -70,15 +123,60 @@ export default function UploadPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const parsing = parse.isPending;
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[360px_1fr]">
       <Card>
         <CardHeader><CardTitle>上传</CardTitle></CardHeader>
         <CardContent className="space-y-3">
-          <Dropzone onFile={(f) => parse.mutate(f)} disabled={parse.isPending} />
-          {parse.isPending && (
+          <Dropzone onFiles={addFiles} disabled={parsing} compact={pending.length > 0} />
+
+          {pending.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>已选 {pending.length} 张</span>
+                <button
+                  type="button"
+                  onClick={clearPending}
+                  disabled={parsing}
+                  className="inline-flex items-center gap-1 hover:text-foreground disabled:opacity-50"
+                >
+                  <Trash2 className="h-3 w-3" /> 清空
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {pending.map((p) => (
+                  <div key={p.id} className="group relative aspect-square overflow-hidden rounded-md border bg-surface">
+                    <img src={p.url} alt={p.file.name} className="h-full w-full object-cover" />
+                    {!parsing && (
+                      <button
+                        type="button"
+                        onClick={() => removePending(p.id)}
+                        aria-label="移除"
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity hover:bg-black/80 group-hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={() => parse.mutate(pending.map((p) => p.file))}
+                disabled={parsing}
+              >
+                {parsing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {parsing && progress ? `解析中 ${progress.current}/${progress.total}` : `解析图片 (${pending.length})`}
+              </Button>
+            </div>
+          )}
+
+          {parsing && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 正在调用视觉模型解析，可能需要 30-180 秒...
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> 正在调用视觉模型解析，单张约 30-180 秒...
             </div>
           )}
           <ManualJsonDialog onLoad={(p) => setRows(flatten(p as ParsedResult))} />
