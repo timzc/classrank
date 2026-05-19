@@ -1,9 +1,9 @@
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
-from django.db import transaction
+from django.db import transaction, models
 from django.db.models import Sum, Max, Q, Case, When, Value, IntegerField
 
 from .models import Student, ScoreRecord, Config, AcademicYear
@@ -341,9 +341,10 @@ def delete_records_by_date(request):
             return json_response({'success': False, 'error': '请指定日期'}, 400)
 
         record_date = datetime.strptime(record_date, '%Y-%m-%d').date()
+        year_id = _parse_year_id(request)
 
         with transaction.atomic():
-            records = ScoreRecord.objects.filter(date=record_date)
+            records = _records_qs(year_id).filter(date=record_date)
             deleted_count = records.count()
             # 找出受影响的学生
             student_ids = list(records.values_list('student_id', flat=True).distinct())
@@ -689,6 +690,140 @@ def get_stats(request):
                 'lowest_score': lowest,
                 'cumulative_highest': cumulative_max
             }
+        })
+
+    except Exception as e:
+        return json_response({'success': False, 'error': str(e)}, 500)
+
+
+@require_http_methods(["GET"])
+def get_stats_range(request):
+    """获取日期范围内的聚合统计：5 张卡片 + 每日序列 + 排行榜。"""
+    try:
+        start_str = request.GET.get('start')
+        end_str = request.GET.get('end')
+        year_id = _parse_year_id(request)
+        today = date.today()
+
+        # Determine effective range: explicit dates > earliest record (for the chosen scope) > today.
+        if end_str:
+            end_date = datetime.strptime(end_str, '%Y-%m-%d').date()
+        else:
+            end_date = today
+
+        if start_str:
+            start_date = datetime.strptime(start_str, '%Y-%m-%d').date()
+        else:
+            earliest = _records_qs(year_id).aggregate(models.Min('date'))['date__min']
+            start_date = earliest or end_date
+
+        if start_date > end_date:
+            start_date, end_date = end_date, start_date
+
+        records = list(
+            _records_qs(year_id).filter(date__gte=start_date, date__lte=end_date)
+        )
+
+        # Totals
+        bonus_total = sum(r.score for r in records if r.type == 'bonus')
+        penalty_total = sum(r.score for r in records if r.type == 'penalty')
+
+        # Participating students within range
+        participating = len({r.student_id for r in records})
+
+        focused = Student.objects.filter(is_focused=True).count()
+
+        # Daily aggregation (every date in [start, end], even if zero)
+        per_day = {}
+        d = start_date
+        while d <= end_date:
+            per_day[d.isoformat()] = {
+                'date': d.isoformat(),
+                'bonus': 0,
+                'penalty': 0,
+                'net': 0,
+            }
+            d += timedelta(days=1)
+        for r in records:
+            key = r.date.isoformat()
+            entry = per_day.get(key)
+            if entry is None:
+                # Defensive — shouldn't happen given the range filter, but skip silently.
+                continue
+            if r.type == 'bonus':
+                entry['bonus'] += r.score
+                entry['net'] += r.score
+            else:
+                entry['penalty'] += r.score
+                entry['net'] -= r.score
+        daily = sorted(per_day.values(), key=lambda x: x['date'])
+        running = 0
+        for d_entry in daily:
+            running += d_entry['net']
+            d_entry['cumulative'] = running
+
+        # Ranking covers all students (those without records in range score 0)
+        score_map = {}
+        records_by_student = {}
+        for r in records:
+            score_map[r.student_id] = score_map.get(r.student_id, 0) + r.signed_score
+            records_by_student.setdefault(r.student_id, []).append(r)
+        all_students = list(Student.objects.values('id', 'name', 'is_focused'))
+        ranking = sorted(
+            (
+                {
+                    'id': s['id'],
+                    'name': s['name'],
+                    'score': score_map.get(s['id'], 0),
+                    'is_focused': s['is_focused'],
+                }
+                for s in all_students
+            ),
+            key=lambda x: x['score'],
+            reverse=True,
+        )
+
+        # Per-focused-student daily + cumulative trend (cumulative reset at range start)
+        focused_trend = []
+        for s in all_students:
+            if not s['is_focused']:
+                continue
+            per_day = {}
+            d = start_date
+            while d <= end_date:
+                per_day[d.isoformat()] = 0
+                d += timedelta(days=1)
+            for r in records_by_student.get(s['id'], []):
+                per_day[r.date.isoformat()] += r.signed_score
+            series = []
+            running = 0
+            for date_key in sorted(per_day.keys()):
+                running += per_day[date_key]
+                series.append({
+                    'date': date_key,
+                    'net': per_day[date_key],
+                    'cumulative': running,
+                })
+            focused_trend.append({
+                'id': s['id'],
+                'name': s['name'],
+                'daily': series,
+            })
+
+        return json_response({
+            'success': True,
+            'data': {
+                'totals': {
+                    'bonus': bonus_total,
+                    'penalty': penalty_total,
+                    'net': bonus_total - penalty_total,
+                },
+                'participating_students': participating,
+                'focused_students': focused,
+                'daily': daily,
+                'ranking': ranking,
+                'focused_trend': focused_trend,
+            },
         })
 
     except Exception as e:

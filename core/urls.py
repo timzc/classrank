@@ -30,6 +30,7 @@ urlpatterns = [
 
     # 统计数据
     path('stats/', views.get_stats, name='get_stats'),
+    path('stats/range/', views.get_stats_range, name='get_stats_range'),
 
     # 数据管理
     path('data/export/', views.export_data, name='export_data'),

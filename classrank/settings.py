@@ -34,6 +34,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -67,7 +68,7 @@ WSGI_APPLICATION = 'classrank.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': Path(os.getenv('DB_DIR', BASE_DIR)) / 'db.sqlite3',
     }
 }
 
@@ -97,6 +98,7 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media files
 MEDIA_URL = '/media/'
@@ -113,3 +115,5 @@ CORS_ALLOW_CREDENTIALS = True
 SILICONFLOW_API_KEY = os.getenv('SILICONFLOW_API_KEY', '')
 SILICONFLOW_MODEL = os.getenv('SILICONFLOW_MODEL', 'Qwen/Qwen2.5-VL-32B-Instruct')
 SILICONFLOW_API_URL = 'https://api.siliconflow.cn/v1/chat/completions'
+# SiliconFlow OCR 请求超时（秒）。视觉模型推理可能较慢，默认 180。
+SILICONFLOW_TIMEOUT = int(os.getenv('SILICONFLOW_TIMEOUT', '180'))

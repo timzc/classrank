@@ -49,6 +49,7 @@ class OCRService:
         self.api_key = self._get_api_key()
         self.model = self._get_model()
         self.api_url = settings.SILICONFLOW_API_URL
+        self.timeout = settings.SILICONFLOW_TIMEOUT
         self.session = self._create_session()
 
     def _create_session(self):
@@ -164,7 +165,7 @@ class OCRService:
                 self.api_url,
                 json=payload,
                 headers=headers,
-                timeout=60
+                timeout=(10, self.timeout)
             )
 
             # 添加更详细的错误信息
@@ -215,7 +216,7 @@ class OCRService:
             if 'timed out' in str(e).lower() or 'timeout' in str(e).lower():
                 return {
                     'success': False,
-                    'error': f'请求超时（服务器60秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
+                    'error': f'请求超时（服务器{self.timeout}秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
                 }
             return {
                 'success': False,
@@ -224,7 +225,7 @@ class OCRService:
         except requests.exceptions.Timeout as e:
             return {
                 'success': False,
-                'error': f'请求超时（服务器60秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
+                'error': f'请求超时（服务器{self.timeout}秒内未响应），可能是图片较大或模型处理较慢，请稍后重试: {e}'
             }
         except requests.exceptions.RequestException as e:
             return {
