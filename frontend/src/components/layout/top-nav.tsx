@@ -14,7 +14,9 @@ export function TopNav() {
     <header className="sticky top-0 z-40 border-b backdrop-blur-xl bg-white/70">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
         <div className="flex items-center gap-2.5">
-          <div className="h-7 w-7 rounded-md bg-black" aria-hidden />
+          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-[hsl(var(--surface))] text-base leading-none" aria-hidden>
+            📊
+          </div>
           <span className="text-sm font-semibold tracking-tight">考评积分</span>
         </div>
         <nav
