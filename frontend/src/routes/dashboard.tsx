@@ -119,17 +119,7 @@ export default function DashboardPage() {
 
       <Card>
         <CardHeader className="space-y-3">
-          <div className="flex items-center justify-between">
-            <CardTitle>学生分数</CardTitle>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FF9500] focused-bar" /> 重点关注
-              </span>
-              <span className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#0A84FF]" /> 其他
-              </span>
-            </div>
-          </div>
+          <CardTitle>学生分数</CardTitle>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="ranking">
@@ -138,6 +128,14 @@ export default function DashboardPage() {
               <TabsTrigger value="trend">趋势</TabsTrigger>
             </TabsList>
             <TabsContent value="ranking" className="pt-4">
+              <div className="mb-2 flex items-center justify-end gap-3 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#FF9500] focused-bar" /> 重点关注
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-sm bg-[#0A84FF]" /> 其他
+                </span>
+              </div>
               {data ? <StudentScoreChart data={data.ranking} /> : <Skeleton className="h-[320px]" />}
             </TabsContent>
             <TabsContent value="trend" className="pt-4">
