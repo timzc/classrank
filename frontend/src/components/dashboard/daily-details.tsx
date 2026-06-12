@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronRight, Trash2 } from 'lucide-react';
+import { ChevronRight, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { recordsApi } from '@/lib/api/records';
+import { recordsApi, type DailyDetailStudent } from '@/lib/api/records';
 import { queryKeys } from '@/lib/query-keys';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,23 @@ function DailyRow({ date }: { date: string }) {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  const rename = useMutation({
+    mutationFn: async ({ student, name }: { student: DailyDetailStudent; name: string }) => {
+      for (const b of student.bonus) {
+        await recordsApi.update(b.id, { student_name: name, item: b.item, score: b.score, type: 'bonus' });
+      }
+      for (const p of student.penalty) {
+        await recordsApi.update(p.id, { student_name: name, item: p.item, score: p.score, type: 'penalty' });
+      }
+    },
+    onSuccess: () => toast.success('姓名已更新'),
+    onError: (e: Error) => toast.error(e.message),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['records'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['students'] });
+    },
+  });
 
   const students = data?.records ?? [];
 
@@ -69,7 +86,11 @@ function DailyRow({ date }: { date: string }) {
           {students.map((s) => (
             <div key={s.student_id} className="space-y-0.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="font-medium">{s.student_name}</span>
+                <StudentName
+                  student={s}
+                  saving={rename.isPending}
+                  onRename={(name) => rename.mutate({ student: s, name })}
+                />
                 <span className={cn('tabular-nums', s.net_score >= 0 ? 'text-[hsl(var(--success))]' : 'text-[hsl(var(--destructive))]')}>
                   {s.net_score >= 0 ? '+' : ''}{s.net_score}
                 </span>
@@ -91,5 +112,60 @@ function DailyRow({ date }: { date: string }) {
         </div>
       )}
     </div>
+  );
+}
+
+function StudentName({
+  student,
+  saving,
+  onRename,
+}: {
+  student: DailyDetailStudent;
+  saving: boolean;
+  onRename: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(student.student_name);
+
+  const startEdit = () => {
+    setValue(student.student_name);
+    setEditing(true);
+  };
+  const submit = () => {
+    const name = value.trim();
+    setEditing(false);
+    if (!name || name === student.student_name) return;
+    onRename(name);
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') submit();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        onBlur={() => setEditing(false)}
+        className="w-28 rounded border bg-background px-1.5 py-0.5 text-xs font-medium outline-none focus:ring-1 focus:ring-ring"
+      />
+    );
+  }
+
+  return (
+    <span className="group flex items-center gap-1">
+      <span className="font-medium">{student.student_name}</span>
+      <button
+        type="button"
+        onClick={startEdit}
+        disabled={saving}
+        aria-label="修改姓名"
+        className="text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-30"
+      >
+        <Pencil className="h-3 w-3" />
+      </button>
+    </span>
   );
 }
